@@ -46,15 +46,15 @@ export GOGC="${GOGC_BUILD:-off}"
 step_done
 
 step_start "Building"
-run_logged make -j "$NPROC" GO="$GOPATH/go" GCFLAGS="${GO_GCFLAGS}" LDFLAGS="${GO_LDFLAGS}" BUILDTAGS="seccomp apparmor systemd" PREFIX=/usr
+run_logged make -j "$NPROC" GO="$GOPATH/go" GCFLAGS="${GO_GCFLAGS}" LDFLAGS="${GO_LDFLAGS}" BUILDTAGS="seccomp apparmor systemd" PREFIX="${INSTALL_PREFIX}"
 step_done
 
 step_start "Installing"
 if [[ -n "${DESTDIR:-}" ]]; then
-    run_logged make GO="$GOPATH/go" install PREFIX=/usr DESTDIR="${DESTDIR}"
-    run_logged make GO="$GOPATH/go" install.completions PREFIX=/usr DESTDIR="${DESTDIR}"
+    run_logged make GO="$GOPATH/go" install PREFIX="${INSTALL_PREFIX}" DESTDIR="${DESTDIR}"
+    run_logged make GO="$GOPATH/go" install.completions PREFIX="${INSTALL_PREFIX}" DESTDIR="${DESTDIR}"
 else
-    run_logged sudo make GO="$GOPATH/go" install PREFIX=/usr
-    run_logged sudo make GO="$GOPATH/go" install.completions PREFIX=/usr
+    run_logged make GO="$GOPATH/go" install PREFIX="${INSTALL_PREFIX}"
+    run_logged make GO="$GOPATH/go" install.completions PREFIX="${INSTALL_PREFIX}"
 fi
 step_done

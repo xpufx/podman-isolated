@@ -49,8 +49,8 @@ step_start "Installing"
 # conmon v2.2.1+ removed the conditional go-md2man guard, making `make install` fail
 # when go-md2man is not yet built. Man pages are handled separately by install_container-manpages.sh.
 if [[ -n "${DESTDIR:-}" ]]; then
-    run_logged make install.bin PREFIX=/usr DESTDIR="${DESTDIR}"
+    run_logged make install.bin PREFIX="${INSTALL_PREFIX}" DESTDIR="${DESTDIR}"
 else
-    run_logged sudo make install.bin PREFIX=/usr
+    run_logged make install.bin PREFIX="${INSTALL_PREFIX}"
 fi
 step_done

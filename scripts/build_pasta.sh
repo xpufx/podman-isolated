@@ -51,35 +51,24 @@ run_logged make -j "$NPROC"
 step_done
 
 step_start "Installing"
+# Passt/pasta location is deliberately staged under libexec/podman for the
+# isolated-podman branch; Phase 1 empirically confirms whether Podman invokes
+# it from there. (Upstream passt has its own conventions — this is a probe,
+# not an assumption.)
+PASTDIR="${INSTALL_PREFIX}/libexec/podman"
 if [[ -n "${DESTDIR:-}" ]]; then
-    install -D -m 0755 passt "${DESTDIR}/usr/bin/passt"
-    [[ -f passt.avx2 ]] && install -D -m 0755 passt.avx2 "${DESTDIR}/usr/bin/passt.avx2"
-    install -D -m 0755 pasta "${DESTDIR}/usr/bin/pasta"
-    [[ -f pasta.avx2 ]] && install -D -m 0755 pasta.avx2 "${DESTDIR}/usr/bin/pasta.avx2"
-    # pesto (live port-forward reconfig) and passt-repair (TCP-migration helper)
-    # are core BASEBIN members built on every arch — install unconditionally,
-    # exactly like passt/pasta, so staging, the manifest, and COMPONENT_BINARIES
-    # stay consistent. If upstream ever drops one, this fails loud here (at the
-    # source) rather than as a confusing downstream nFPM abort.
-    install -D -m 0755 pesto "${DESTDIR}/usr/bin/pesto"
-    install -D -m 0755 passt-repair "${DESTDIR}/usr/bin/passt-repair"
+    install -D -m 0755 passt "${DESTDIR}${PASTDIR}/passt"
+    [[ -f passt.avx2 ]] && install -D -m 0755 passt.avx2 "${DESTDIR}${PASTDIR}/passt.avx2"
+    install -D -m 0755 pasta "${DESTDIR}${PASTDIR}/pasta"
+    [[ -f pasta.avx2 ]] && install -D -m 0755 pasta.avx2 "${DESTDIR}${PASTDIR}/pasta.avx2"
+    install -D -m 0755 pesto "${DESTDIR}${PASTDIR}/pesto"
+    install -D -m 0755 passt-repair "${DESTDIR}${PASTDIR}/passt-repair"
 else
-    # Kill current running processes (ignore errors)
-    shopt -qo errexit
-    current_error_setting=$?
-    set +e
-    ps aux | grep pasta | grep -v "bash" | awk '{print $2}' | xargs -r -n 1 kill -9 || true
-    if [ ${current_error_setting} -eq 0 ]; then set -e; fi
-
-    sudo install -D -m 0755 passt /usr/bin/passt
-    [[ -f passt.avx2 ]] && sudo install -D -m 0755 passt.avx2 /usr/bin/passt.avx2
-    sudo install -D -m 0755 pasta /usr/bin/pasta
-    [[ -f pasta.avx2 ]] && sudo install -D -m 0755 pasta.avx2 /usr/bin/pasta.avx2
-    sudo install -D -m 0755 pesto /usr/bin/pesto
-    sudo install -D -m 0755 passt-repair /usr/bin/passt-repair
-
-    # Remove files that shouldn't have been previously installed
-    rm -f /usr/local/bin/passt.1 /usr/local/bin/passt.c /usr/local/bin/passt.h
-    rm -f /usr/local/bin/pasta.1 /usr/local/bin/pasta.c /usr/local/bin/pasta.h
+    install -D -m 0755 passt "${PASTDIR}/passt"
+    [[ -f passt.avx2 ]] && install -D -m 0755 passt.avx2 "${PASTDIR}/passt.avx2"
+    install -D -m 0755 pasta "${PASTDIR}/pasta"
+    [[ -f pasta.avx2 ]] && install -D -m 0755 pasta.avx2 "${PASTDIR}/pasta.avx2"
+    install -D -m 0755 pesto "${PASTDIR}/pesto"
+    install -D -m 0755 passt-repair "${PASTDIR}/passt-repair"
 fi
 step_done

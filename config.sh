@@ -198,6 +198,15 @@ export GOMODCACHE="${GOMODCACHE:-/var/cache/go-mod}"
 mkdir -p "${GOCACHE}" "${GOMODCACHE}" 2>/dev/null || true
 
 # ============================================
+# Isolated-install prefix (NEW: isolated-podman branch)
+# ============================================
+# When set to a non-/usr path, the build_*.sh install steps stage the whole
+# Podman stack under INSTALL_PREFIX instead of /usr, producing an independent
+# tree (e.g. /opt/podman-test) that does NOT touch Ubuntu's Podman. Defaults to
+# /usr to preserve the upstream /usr install behavior when unset.
+export INSTALL_PREFIX="${INSTALL_PREFIX:-/usr}"
+
+# ============================================
 # Build Paths
 # ============================================
 

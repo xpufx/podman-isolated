@@ -68,10 +68,10 @@ step_done
 
 step_start "Installing"
 if [[ -n "${DESTDIR:-}" ]]; then
-    install -D -m 0755 bin/netavark "${DESTDIR}/usr/bin/netavark"
-    install -D -m 0755 bin/netavark-dhcp-proxy-client "${DESTDIR}/usr/bin/netavark-dhcp-proxy-client"
+    install -D -m 0755 bin/netavark "${DESTDIR}${INSTALL_PREFIX}/libexec/podman/netavark"
+    install -D -m 0755 bin/netavark-dhcp-proxy-client "${DESTDIR}${INSTALL_PREFIX}/libexec/podman/netavark-dhcp-proxy-client"
 else
-    sudo install -D -m 0755 bin/netavark /usr/bin/netavark
-    sudo install -D -m 0755 bin/netavark-dhcp-proxy-client /usr/bin/netavark-dhcp-proxy-client
+    install -D -m 0755 bin/netavark "${INSTALL_PREFIX}/libexec/podman/netavark"
+    install -D -m 0755 bin/netavark-dhcp-proxy-client "${INSTALL_PREFIX}/libexec/podman/netavark-dhcp-proxy-client"
 fi
 step_done

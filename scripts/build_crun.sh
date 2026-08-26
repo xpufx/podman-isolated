@@ -52,7 +52,7 @@ step_done
 step_start "Configuring"
 # crun dynamically links libyajl2 at runtime; the libyajl2 package dependency
 # is declared in packaging/nfpm/crun.yaml so apt installs it on target systems.
-./configure --prefix=/usr
+./configure --prefix="${INSTALL_PREFIX}"
 step_done
 
 step_start "Building"
@@ -61,8 +61,8 @@ step_done
 
 step_start "Installing"
 if [[ -n "${DESTDIR:-}" ]]; then
-    run_logged make install DESTDIR="${DESTDIR}"
+    run_logged make install DESTDIR="${DESTDIR}" prefix="${INSTALL_PREFIX}"
 else
-    run_logged sudo make install
+    run_logged make install prefix="${INSTALL_PREFIX}"
 fi
 step_done

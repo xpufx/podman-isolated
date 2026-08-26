@@ -76,8 +76,8 @@ step_done
 
 step_start "Installing"
 if [[ -n "${DESTDIR:-}" ]]; then
-    install -D -m 0755 bin/aardvark-dns "${DESTDIR}/usr/bin/aardvark-dns"
+    install -D -m 0755 bin/aardvark-dns "${DESTDIR}${INSTALL_PREFIX}/libexec/podman/aardvark-dns"
 else
-    sudo install -D -m 0755 bin/aardvark-dns /usr/bin/aardvark-dns
+    install -D -m 0755 bin/aardvark-dns "${INSTALL_PREFIX}/libexec/podman/aardvark-dns"
 fi
 step_done
