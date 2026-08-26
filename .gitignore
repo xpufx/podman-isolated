@@ -1,3 +1,6 @@
 # Throwaway Phase 1 build drivers + logs (not repo source)
 phase1-build.sh
 phase1-build2.sh
+# Build cache (cloned upstream sources + per-component logs)
+build/
+log/
