@@ -79,7 +79,7 @@ for dest in \
     "${DESTDIR:-}${CFG_ROOT}/policy.json" \
     "${DESTDIR:-}${CFG_ROOT}/registries.d/default.yaml" \
     "${DESTDIR:-}${CFG_ROOT}/storage.conf" \
-    "${DESTDIR:-}${CFG_ROOT}/registries.conf; do"
+    "${DESTDIR:-}${CFG_ROOT}/registries.conf"; do
     if test -f "${dest}"; then
         echo "  OK: ${dest}"
     else
