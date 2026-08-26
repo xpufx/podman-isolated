@@ -190,3 +190,66 @@ graphroot) — for **both rootless and rootful**.
 - **Staging/symlink pitfall:** a symlink tree can *look* isolated while binaries still
   resolve under `/usr`. Admissible only after Phase 2 demonstrates correct runtime
   behavior — never as a cosmetic shortcut.
+
+---
+
+## Phase 1 & 2 — ACTUAL RESULTS (2026-08-26)
+
+Both phases executed on this host. Summary of what was empirically established.
+
+### Version set resolved (stable/6.x track)
+`podman v6.1.0`, `crun 1.29.1`, `conmon v2.2.1`, `netavark v2.1.0`,
+`aardvark-dns v2.1.0`, `container-configs common/v0.69.1`. Build deps + Go 1.26.6
+(system, >= required 1.25.9) + Rust 1.96.0 (`~/.cargo`, >= MSRV 1.88) used; no
+`sudo`, no `/opt/go`, no system Podman modification.
+
+### Load-bearing assumption: CONFIRMED
+Upstream `PREFIX`/`LIBEXECDIR`/`LIBEXECPODMAN` prefix vars DO relocate the full
+tree. Built into `/opt/podman-test` (later promoted to
+`/opt/podman/releases/6.1.0`): `bin/{podman,podman-remote,crun,conmon}`,
+`libexec/podman/{netavark,aardvark-dns,passt,pasta,quadlet,rootlessport,...}`,
+`etc/containers/*`, `share/containers/seccomp.json`. C components (crun/conmon)
+honored `./configure --prefix` / `make PREFIX=`; Rust (netavark/aardvark) honored
+the `libexec/podman` staging; passt staged in `libexec/podman` (Phase 1 probe
+confirmed podman invokes it there).
+
+### Isolation leaks found & fixed (this is the whole point)
+Raw prefix binary (no env) leaks to Ubuntu: `podman info` reported
+`/usr/bin/crun`, `/usr/bin/conmon`, `/usr/lib/podman/{netavark,aardvark}`,
+`/usr/bin/pasta`, `/usr/share/containers/seccomp.json`. Root cause: the prefix
+`containers.conf` was not being consulted AND `conmon_path`/`helper_binaries_dir`
+needed absolute prefix paths + an explicit `[engine.runtimes] crun = [...]`.
+Fixed by a prefix-local `containers.conf` with absolute `/opt/podman/...` paths
+and the `podman-upstream` wrapper that exports `CONTAINERS_CONF` +
+`CONTAINERS_HELPER_BINARY_DIR` + `XDG_*`.
+
+### Phase 2 proof (rootless) — PASSED
+`strace -f -e trace=execve` on `podman-upstream run` showed actual execve of:
+- `/opt/podman/releases/6.1.0/bin/conmon` (v2.2.1)
+- `/opt/podman/releases/6.1.0/bin/crun` (v1.29.1)
+- `/opt/podman/current/libexec/podman/{netavark,aardvark-dns,pasta}`
+- ZERO execve of `/usr/bin/crun` or `/usr/bin/conmon`.
+Storage graphRoot = `/opt/podman/current/var/xdg/data/containers/storage`
+(prefix-local); Ubuntu's graphRoot (`~/.local/share/containers`) untouched.
+Container ran successfully. `podman version` (Ubuntu 4.9.3) remains intact.
+
+### Storage note (learned the hard way)
+Podman marks extracted image layer dirs read-only (`0555`) and immutable (`chattr
++i`). After moving the tree, the stale storage DB refused deletion until `chmod -R
+u+w` + `chattr -i` cleared those. Lesson: a release move requires resetting
+storage state, or build directly at the final `INSTALL_PREFIX` path.
+
+### Outstanding
+- **Rootful** mode not yet re-tested post-promotion (sudo step aborted earlier);
+  the same wrapper + `XDG_*` under the prefix applies, but must be confirmed.
+- `podman-upstream` is installed at `/opt/podman/bin/podman-upstream` (symlinked
+  into `~/.local/bin`); not in `/usr/local/bin` (needs sudo). Add `~/.local/bin`
+  to PATH or call via absolute path.
+- `phase1-build*.sh` drivers are throwaway scaffolding (untracked / gitignored).
+
+### Phase 3 status
+Mechanism implemented and proven: `/opt/podman/releases/6.1.0` + `current`
+symlink + `podman-upstream` wrapper. Rollback = repoint `current`. The
+`INSTALL_PREFIX` abstraction in the build scripts is the reusable feature for
+future releases (ideally driven by the `podman-package` Docker build system on
+its `isolated-build` branch for hermetic, reproducible prefix builds).
