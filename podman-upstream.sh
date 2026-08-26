@@ -1,19 +1,22 @@
 #!/usr/bin/env bash
 # podman-upstream — invoke the isolated upstream Podman build.
 #
-# Isolation is the DEFAULT here: it points Podman exclusively at the prefix tree
-# under /opt/podman/current, so it never consults Ubuntu's /usr/bin/podman
-# ecosystem or /etc/containers. Without this wrapper, running the prefix binary
-# raw falls back to the system config and leaks to /usr (proven in Phase 2).
+# Installed only in isolated mode (INSTALL_PREFIX != /usr). It points Podman
+# exclusively at the prefix tree it lives in, so it never consults the system
+# /usr/bin/podman ecosystem or /etc/containers. Without this wrapper, running
+# the prefix binary raw falls back to the system config and leaks to /usr.
 #
-# Override the root with PODMAN_UPSTREAM_ROOT (used to test a throwaway tree).
+# PODMAN_ROOT is derived from this script's own location (the prefix it was
+# installed into), so the wrapper is portable across any INSTALL_PREFIX.
+# Override with PODMAN_UPSTREAM_ROOT if needed (e.g. testing a throwaway tree).
 set -euo pipefail
 
-PODMAN_ROOT="${PODMAN_UPSTREAM_ROOT:-/opt/podman/current}"
+SELF="$(readlink -f "${BASH_SOURCE[0]}")"
+PODMAN_ROOT="${PODMAN_UPSTREAM_ROOT:-$(cd "$(dirname "${SELF}")/.." && pwd)}"
 
 if [[ ! -x "${PODMAN_ROOT}/bin/podman" ]]; then
     echo "podman-upstream: prefix podman not found at ${PODMAN_ROOT}/bin/podman" >&2
-    echo "  Is /opt/podman/current symlinked to a built release?" >&2
+    echo "  Is this wrapper installed inside an isolated Podman prefix?" >&2
     exit 1
 fi
 
