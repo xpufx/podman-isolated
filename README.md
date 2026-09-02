@@ -1,221 +1,152 @@
-# podman-ubuntu
+# podman-isolated
 
-Compile and install the latest Podman container stack from source on Debian/Ubuntu, or install pre-built packages from the hosted APT repository.
+Fully isolated, multi-version builds of the upstream Podman container engine and its OCI companion stack (`crun`, `conmon`, `netavark`, `aardvark-dns`, `pasta`). 
 
-📦 **APT repository:** <https://slazarov.github.io/podman-ubuntu/> — browse tracks, suites, and per-package versions, or jump straight to [Install via APT](#install-via-apt-recommended).
+Built specifically for Debian/Ubuntu systems where you need modern, upstream Podman features (e.g., Podman 6.x) running cleanly side-by-side with the distribution's official Podman packages without package conflicts, `/usr` pollution, or runtime helper collisions.
 
-[![lint](https://github.com/slazarov/podman-ubuntu/actions/workflows/lint.yml/badge.svg)](https://github.com/slazarov/podman-ubuntu/actions/workflows/lint.yml)
-[![build](https://github.com/slazarov/podman-ubuntu/actions/workflows/build-packages.yml/badge.svg)](https://github.com/slazarov/podman-ubuntu/actions/workflows/build-packages.yml)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
 
 | | |
 |---|---|
 | **License** | AGPL-3.0 |
-| **Platforms** | Ubuntu 24.04 (Noble Numbat), Ubuntu 26.04 (Resolute Raccoon) |
+| **Supported Platforms** | Ubuntu 24.04 (Noble Numbat), Ubuntu 26.04 (Resolute Raccoon), Debian |
 | **Architectures** | amd64 (x86_64), arm64 (aarch64) |
-
-Forked from [luckylinux/podman-debian](https://github.com/luckylinux/podman-debian) with significant additions: arm64 support, fully non-interactive builds, a hosted APT repository, CI/CD pipelines, 12 packaged components, opt-in build caching, and three release tracks (stable, v5, nightly).
-
----
-
-## Install via APT (Recommended)
-
-Add the repository and install the full Podman stack in four commands:
-
-```bash
-# Download the GPG signing key
-sudo mkdir -p /etc/apt/keyrings
-sudo wget -qO /etc/apt/keyrings/podman-ubuntu.gpg \
-  https://slazarov.github.io/podman-ubuntu/podman-ubuntu.gpg
-
-# Add the repository (DEB822 format).
-# Use the suite for your Ubuntu version: stable-2404 (24.04) or stable-2604 (26.04).
-sudo tee /etc/apt/sources.list.d/podman-ubuntu.sources << 'EOF'
-Types: deb
-URIs: https://slazarov.github.io/podman-ubuntu
-Suites: stable-2404
-Components: main
-Signed-By: /etc/apt/keyrings/podman-ubuntu.gpg
-EOF
-
-# Update and install
-sudo apt update
-sudo apt install -y podman-suite
-```
-
-The `podman-suite` meta-package pulls in all 12 components listed below.
-
-For full details, troubleshooting, and per-package installation, see [docs/apt-repository.md](docs/apt-repository.md).
-
-### Release Tracks
-
-Each track is published per Ubuntu version with a distro-qualified suite name:
-
-| Track | Ubuntu 24.04 suite | Ubuntu 26.04 suite | Update Frequency |
-|-------|--------------------|--------------------|------------------|
-| **stable** | `stable-2404` | `stable-2604` | Podman 6.x, auto-updated within the major (soak window) |
-| **v5** | `v5-2404` | `v5-2604` | Podman 5.x maintenance, auto-updated within the series |
-| **nightly** | `nightly-2404` | `nightly-2604` | Daily at 4:30 AM UTC |
-
-Use **stable** for the current Podman 6.x line, **v5** to stay on the Podman 5.x maintenance line, and **nightly** for bleeding-edge development.
-
-To switch tracks, change the `Suites:` line in your sources file and re-run `apt update`:
-
-```bash
-# Example: switch from stable to v5 on Ubuntu 24.04
-sudo sed -i 's/^Suites: .*/Suites: v5-2404/' /etc/apt/sources.list.d/podman-ubuntu.sources
-sudo apt update
-sudo apt upgrade
-```
-
-> **Note:** The bare suite names `stable` and `nightly` are deprecated as of v1.3 and will be removed in a future release. They continue to serve Ubuntu 24.04 packages during the deprecation window. The `v5` track has no bare alias — always use its distro-qualified name (`v5-2404` / `v5-2604`). New setups should use the distro-qualified names above; existing users should migrate (see [docs/apt-repository.md](docs/apt-repository.md)).
+| **Default Prefix** | `/opt/podman/releases/<version>` (symlinked to `/opt/podman/current`) |
 
 ---
 
-## Individual Packages
+## Provenance
 
-All packages use the `podman-*` prefix and declare `Conflicts`, `Replaces`, and `Provides` against the official Ubuntu packages, so the newer compiled-from-source versions take priority.
+This project started as an independent fork of [slazarov/podman-ubuntu](https://github.com/slazarov/podman-ubuntu) (which itself originated from [luckylinux/podman-debian](https://github.com/luckylinux/podman-debian)). 
 
-| Package | Description | Binaries shipped |
-|---------|-------------|------------------|
-| `podman-podman` | Container engine (core) | `podman`, `podman-remote`, `podmansh`; `quadlet` + `rootlessport` under `/usr/libexec/podman` |
-| `podman-crun` | OCI runtime | `crun` |
-| `podman-conmon` | Container monitor | `conmon` |
-| `podman-netavark` | Container networking | `netavark`, `netavark-dhcp-proxy-client` |
-| `podman-aardvark-dns` | DNS for container networks | `aardvark-dns` |
-| `podman-pasta` | User-mode networking (passt) | `passt`, `pasta`, `pesto`, `passt-repair`; `passt.avx2` + `pasta.avx2` on x86_64 |
-| `podman-fuse-overlayfs` | Rootless overlay filesystem | `fuse-overlayfs` |
-| `podman-catatonit` | Minimal init for containers | `catatonit` |
-| `podman-buildah` | OCI image builder | `buildah` |
-| `podman-skopeo` | Container image utility | `skopeo` |
-| `podman-toolbox` | Containerized development environments | `toolbox` |
-| `podman-container-configs` | Configuration files for `/etc/containers/` | _(config files only)_ |
+While upstream `podman-ubuntu` is designed as an in-place package replacement under `/usr` (declaring `Conflicts:` and `Replaces:` against Ubuntu's stock packages), **`podman-isolated`** is re-architected for **peaceful coexistence**:
+* Complete separation from the host system's package manager.
+* Multi-version release layout with instant symlink switching.
+* Hermetic container configuration and runtime isolation to prevent cross-talk.
 
-Binary coverage is guarded at package time: `scripts/verify_shipped_binaries.sh`
-warns if a build stages a binary that no package ships, so newly-added upstream
-binaries can't slip through unnoticed.
+---
 
-Install only the core runtime (it pulls required dependencies automatically):
+## Why podman-isolated?
+
+When attempting to run upstream Podman on an existing Linux system, several common pitfalls emerge:
+
+1. **Package Collisions:** Distribution package managers (APT) manage `/usr/bin/podman`, `/usr/bin/crun`, and `/usr/libexec/podman/*`. Overwriting these breaks system updates and dependent services.
+2. **Runtime Helper Leakage:** Upstream Podman searches `$PATH` and `/etc/containers` for companion binaries. Without explicit isolation, an upstream Podman binary can quietly invoke the system's older `/usr/bin/crun` or `/usr/bin/conmon`, causing subtle runtime incompatibilities (such as the runner-images crun mismatch bug).
+3. **Database & Storage Clashes:** If multiple Podman instances share `/var/lib/containers` or `$HOME/.local/share/containers`, storage driver metadata and database locks collide.
+4. **Network Socket Crossover:** Running custom bridge networks simultaneously can collide if both engines look for network daemons (like `aardvark-dns`) in the same default `/run/` socket paths.
+
+`podman-isolated` solves this by packaging the complete container engine and companion utilities into a self-contained prefix with an isolating execution wrapper.
+
+---
+
+## Directory & Release Architecture
+
+All releases live under `/opt/podman/` in isolated, versioned directory trees:
+
+```text
+/opt/podman/
+├── releases/
+│   ├── 6.1.0/
+│   │   ├── bin/                 # podman, crun, conmon
+│   │   ├── libexec/podman/      # netavark, aardvark-dns, pasta, quadlet, rootlessport
+│   │   ├── etc/containers/      # containers.conf, storage.conf, registries.conf
+│   │   ├── share/containers/    # seccomp.json
+│   │   └── var/xdg/             # Rootless storage and config
+│   └── 5.4.0/                   # Co-existing earlier release
+├── current -> releases/6.1.0    # Active version pointer
+└── bin/
+    └── podman-upstream          # Environment-isolating runner script
+```
+
+The host system's `/usr/bin/podman`, `/etc/containers/`, `/var/lib/containers/`, and `~/.local/share/containers/` remain 100% untouched.
+
+---
+
+## The `podman-upstream` Wrapper
+
+Running `/opt/podman/bin/podman-upstream` (or symlinked to `~/.local/bin/podman-upstream`) sets up the hermetic environment before launching the engine:
+
+* Pins `PATH` and `CONTAINERS_HELPER_BINARY_DIR` to the prefix.
+* Directs `CONTAINERS_CONF` to the prefix-local `containers.conf`.
+* Directs rootless `XDG_DATA_HOME` and `XDG_CONFIG_HOME` into the prefix tree so rootless databases and image stores never collide with the host.
+* Switches to `storage-root.conf` when invoked via `sudo` to keep rootful container storage confined to the prefix's `var/lib/containers/storage`.
 
 ```bash
-sudo apt install podman-podman
+# Verify upstream Podman version
+podman-upstream version
+
+# Ubuntu's system Podman remains unaffected
+podman version
 ```
 
 ---
 
-## Build from Source
+## Components Built
 
-For users who prefer to compile everything locally rather than using the APT repository.
+Each release builds and packages the complete modern OCI stack:
+
+| Component | Role | Tested Version |
+| :--- | :--- | :--- |
+| **[Podman](https://github.com/containers/podman)** | Daemonless container engine | 6.1.0 |
+| **[crun](https://github.com/containers/crun)** | Fast, low-memory OCI runtime (C) | 1.29.1 |
+| **[conmon](https://github.com/containers/conmon)** | Container monitor & lifecycle | 2.2.1 |
+| **[Netavark](https://github.com/containers/netavark)** | Container network stack (Rust) | 2.1.0 |
+| **[Aardvark-DNS](https://github.com/containers/aardvark-dns)** | Container DNS server | 2.1.0 |
+| **[pasta / passt](https://passt.top/)** | Rootless user-mode networking | Latest upstream |
+
+---
+
+## Building from Source
 
 ### Prerequisites
+* Ubuntu 24.04 / 26.04 or Debian-based host
+* System build tools: Go (1.22+), Rust / Cargo, GCC / Clang, make
 
-- Debian or Ubuntu system (tested on Ubuntu 24.04 and 26.04)
-- Root or sudo access
-- Internet access
+### Build & Installation Steps
 
-The build auto-detects the Go and Rust toolchain versions from upstream sources (Podman's `go.mod` and Netavark's `Cargo.toml`) and installs Go, Rust, and protoc itself, so no manual toolchain setup is required.
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/xpufx/podman-isolated.git
+   cd podman-isolated
+   ```
 
-### Build Steps
+2. Specify your target prefix:
+   ```bash
+   export INSTALL_PREFIX="/opt/podman/releases/6.1.0"
+   ```
 
-```bash
-git clone https://github.com/slazarov/podman-ubuntu.git
-cd podman-ubuntu
+3. Resolve upstream versions:
+   ```bash
+   eval "$(./scripts/resolve_versions.sh versions-stable.env)"
+   ```
 
-# Resolve the stable-track policy into concrete version tags (Podman 6.x)
-eval "$(./scripts/resolve_versions.sh versions-stable.env)"
+4. Build and install into the prefix:
+   ```bash
+   ./setup.sh
+   ```
 
-# Run the build (as root, preserving the environment)
-sudo -E ./setup.sh
-```
-
-`setup.sh` runs a pre-flight validation step, then builds and installs all 12 components from source. The build is fully non-interactive and auto-detects the system architecture (amd64 or arm64).
-
-To build the Podman 5.x maintenance track, resolve `versions-v5.env` instead (`eval "$(./scripts/resolve_versions.sh versions-v5.env)"`). To build the nightly track from upstream HEAD, source `versions-nightly.env` before running `setup.sh`.
-
-### Build Options
-
-Override environment variables before running `setup.sh` to enable opt-in build caching (all disabled by default):
-
-```bash
-# Enable sccache for Rust builds (50-90% rebuild speedup)
-export SCCACHE_ENABLED=true
-
-# Enable ccache for C builds (30x faster warm-cache rebuilds)
-export CCACHE_ENABLED=true
-
-# Enable mold linker for Rust builds (5-10x faster linking)
-export MOLD_ENABLED=true
-
-eval "$(./scripts/resolve_versions.sh versions-stable.env)"
-sudo -E ./setup.sh
-```
-
-| Layer | Purpose | Speedup | Enable |
-|-------|---------|---------|--------|
-| **sccache** | Rust compilation cache | 50-90% rebuild | `export SCCACHE_ENABLED=true` |
-| **ccache** | C compilation cache | 30x warm-cache | `export CCACHE_ENABLED=true` |
-| **Go cache** | Shared Go module/build cache | 20x rebuild | Enabled by default (`GOCACHE`, `GOMODCACHE`) |
-| **mold** | Fast linker for Rust | 5-10x linking | `export MOLD_ENABLED=true` |
-
-### Uninstall
-
-To cleanly remove all components installed from source:
-
-```bash
-sudo ./uninstall.sh
-```
+5. Point the `current` symlink and link the wrapper:
+   ```bash
+   ln -sfn releases/6.1.0 /opt/podman/current
+   mkdir -p ~/.local/bin
+   ln -sfn /opt/podman/bin/podman-upstream ~/.local/bin/podman-upstream
+   ```
 
 ---
 
-## Components
+## Packaging as Non-Conflicting `.deb` Packages
 
-The project builds and packages the following 12 components from upstream sources:
+In addition to direct prefix builds, `podman-isolated` supports generating standalone Debian packages using **nFPM**:
 
-| Component | Upstream Repository | Description |
-|-----------|---------------------|-------------|
-| Podman | [containers/podman](https://github.com/containers/podman) | Daemonless container engine |
-| Buildah | [containers/buildah](https://github.com/containers/buildah) | OCI image builder |
-| Skopeo | [containers/skopeo](https://github.com/containers/skopeo) | Container image operations (copy, inspect, sign) |
-| crun | [containers/crun](https://github.com/containers/crun) | Fast, low-memory OCI runtime (C) |
-| conmon | [containers/conmon](https://github.com/containers/conmon) | Container monitor (stdio, exit code, logging) |
-| Netavark | [containers/netavark](https://github.com/containers/netavark) | Container network stack (Rust) |
-| Aardvark-DNS | [containers/aardvark-dns](https://github.com/containers/aardvark-dns) | Authoritative DNS for container networks |
-| pasta/passt | [passt.top](https://passt.top/) | User-mode networking (no root required) |
-| fuse-overlayfs | [containers/fuse-overlayfs](https://github.com/containers/fuse-overlayfs) | FUSE overlay filesystem for rootless containers |
-| catatonit | [openSUSE/catatonit](https://github.com/openSUSE/catatonit) | Minimal init process for containers |
-| Toolbox | [containers/toolbox](https://github.com/containers/toolbox) | Containerized CLI development environments |
-| containers-common | [containers/common](https://github.com/containers/common) | Shared config files, seccomp profiles, policy |
-
-### Track Versions
-
-Versions are not hand-pinned. The **stable** track follows the Podman 6.x line and the **v5** track follows the Podman 5.x maintenance line; each auto-updates within its series. [`scripts/resolve_versions.sh`](scripts/resolve_versions.sh) reads a policy file ([`versions-stable.env`](versions-stable.env) / [`versions-v5.env`](versions-v5.env)) declaring per-component series caps and a soak window (a new upstream tag is only adopted once its commit is at least `STABLE_SOAK_DAYS`, default 7, old), then materializes the concrete tags — with Buildah derived from Podman's `go.mod`. The concrete versions currently published are shown in the package-versions table on the repository's [`index.html`](https://slazarov.github.io/podman-ubuntu/). The **nightly** track builds from upstream HEAD daily.
+* Packages are named with track/major indicators (e.g. `podman6`, `podman5`).
+* Packages contain no `Conflicts:` or `Replaces:` against distro `podman`.
+* All files are staged into `/opt/podman/releases/<version>/`.
+* Allows running `apt install podman6` alongside the OS distro package.
 
 ---
 
-## Supported Platforms
+## License & Credits
 
-| Platform | Architectures |
-|----------|--------------|
-| Ubuntu 24.04 (Noble Numbat) | amd64 (x86_64), arm64 (aarch64) |
-| Ubuntu 26.04 (Resolute Raccoon) | amd64 (x86_64), arm64 (aarch64) |
-
-Every distro × architecture cell is built natively in CI (not cross-compiled), and APT selects the correct one automatically.
-
----
-
-## Non-Goals
-
-To stay focused, the project deliberately does **not** provide: end-user pinning to an arbitrary version (each track auto-updates within its own policy — major series plus a soak window), a GUI installer, non-Debian/Ubuntu distributions, 32-bit ARM, resumable or partial builds, component selection, or CNI networking (removed upstream in Podman 5.0).
-
----
-
-## License
-
-[AGPL-3.0](LICENSE)
-
----
-
-## Credits
-
-- Forked from [luckylinux/podman-debian](https://github.com/luckylinux/podman-debian)
-- Upstream: [Podman](https://github.com/containers/podman) by the Containers project
+* Distributed under the **[AGPL-3.0](LICENSE)** license.
+* Based on [slazarov/podman-ubuntu](https://github.com/slazarov/podman-ubuntu) by Stefan Lazarov.
+* Prior lineage from [luckylinux/podman-debian](https://github.com/luckylinux/podman-debian) and the upstream [Containers Project](https://github.com/containers).
