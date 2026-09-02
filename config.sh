@@ -198,7 +198,7 @@ export GOMODCACHE="${GOMODCACHE:-/var/cache/go-mod}"
 mkdir -p "${GOCACHE}" "${GOMODCACHE}" 2>/dev/null || true
 
 # ============================================
-# Isolated-install prefix (NEW: isolated-podman branch)
+# Isolated-install prefix (podman-isolated architecture)
 # ============================================
 # When set to a non-/usr path, the build_*.sh install steps stage the whole
 # Podman stack under INSTALL_PREFIX instead of /usr, producing an independent

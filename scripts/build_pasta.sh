@@ -52,7 +52,7 @@ step_done
 
 step_start "Installing"
 # Passt/pasta location is deliberately staged under libexec/podman for the
-# isolated-podman branch; Phase 1 empirically confirms whether Podman invokes
+# podman-isolated architecture; Phase 1 empirically confirms whether Podman invokes
 # it from there. (Upstream passt has its own conventions — this is a probe,
 # not an assumption.)
 PASTDIR="${INSTALL_PREFIX}/libexec/podman"

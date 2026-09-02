@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - isolated-podman
     paths-ignore:
       - "**.md"
       - "docs/**"
