@@ -149,4 +149,5 @@ In addition to direct prefix builds, `podman-isolated` supports generating stand
 
 * Distributed under the **[AGPL-3.0](LICENSE)** license.
 * Based on [slazarov/podman-ubuntu](https://github.com/slazarov/podman-ubuntu) by Stefan Lazarov.
+* Hermetic containerized packaging design informed by [andrewtheguy/podman-package](https://github.com/andrewtheguy/podman-package) by Andrew Suzuki.
 * Prior lineage from [luckylinux/podman-debian](https://github.com/luckylinux/podman-debian) and the upstream [Containers Project](https://github.com/containers).
