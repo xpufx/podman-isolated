@@ -214,19 +214,18 @@ jobs:
             arch: amd64
             runner: ubuntu-24.04
             container: ''
+          - distro: '2404'
+            arch: arm64
+            runner: ubuntu-24.04-arm
+            container: ''
           - distro: '2604'
             arch: amd64
             runner: ubuntu-24.04
             container: ubuntu:26.04
-          # Note: ARM64 runners (ubuntu-24.04-arm) require GitHub Team / Enterprise.
-          # - distro: '2404'
-          #   arch: arm64
-          #   runner: ubuntu-24.04-arm
-          #   container: ''
-          # - distro: '2604'
-          #   arch: arm64
-          #   runner: ubuntu-24.04-arm
-          #   container: ubuntu:26.04
+          - distro: '2604'
+            arch: arm64
+            runner: ubuntu-24.04-arm
+            container: ubuntu:26.04
     steps:
       # 2604 cells start from a bare ubuntu:26.04 container as root, which lacks
       # the tooling the host runner images already ship (sudo + a sudo-capable
@@ -406,16 +405,23 @@ jobs:
             2604) DISTRO_DOTTED=26.04 ;;
             *) echo "ERROR: unknown matrix.distro '${{ matrix.distro }}'" >&2; exit 1 ;;
           esac
-          export DISTRO="$DISTRO_DOTTED"
-          export PATH="/opt/go/$(ls /opt/go/)/bin:$HOME/go/bin:$PATH"
-          export DESTDIR="${{ runner.temp }}/podman-staging"
+          DISTRO="$DISTRO_DOTTED"
+          export DISTRO
+          GO_DIR="$(ls /opt/go/ 2>/dev/null | head -1 || true)"
+          if [[ -n "$GO_DIR" ]]; then
+            PATH="/opt/go/${GO_DIR}/bin:$HOME/go/bin:$PATH"
+            export PATH
+          fi
+          DESTDIR="${{ runner.temp }}/podman-staging"
+          export DESTDIR
           if [[ "${{ steps.track.outputs.track }}" == "nightly" ]]; then
             export NIGHTLY_BUILD=true
             export INSTALL_PREFIX="/opt/podman/releases/nightly"
           elif [[ -f "versions-${{ steps.track.outputs.track }}.env" ]]; then
             PODMAN_TAG_RAW="$(grep '^export PODMAN_TAG=' "versions-${{ steps.track.outputs.track }}.env" | cut -d= -f2 | tr -d '"' || true)"
             if [[ -n "$PODMAN_TAG_RAW" ]]; then
-              export INSTALL_PREFIX="/opt/podman/releases/${PODMAN_TAG_RAW#v}"
+              INSTALL_PREFIX="/opt/podman/releases/${PODMAN_TAG_RAW#v}"
+              export INSTALL_PREFIX
             fi
           fi
           ./scripts/package_all.sh
