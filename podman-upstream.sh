@@ -38,4 +38,22 @@ else
     export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 fi
 
-exec "${PODMAN_ROOT}/bin/podman" "$@"
+# If invoking "system service" without an explicit URI, default to the isolated socket
+if [[ "${1:-}" == "system" && "${2:-}" == "service" ]]; then
+    has_uri=false
+    for arg in "${@:3}"; do
+        if [[ "$arg" =~ ^(unix|tcp):// ]]; then
+            has_uri=true
+            break
+        fi
+    done
+    if [[ "$has_uri" == false ]]; then
+        if [[ "$(id -u)" -eq 0 ]]; then
+            set -- "$@" "unix:///run/podman-upstream/podman.sock"
+        else
+            set -- "$@" "unix://${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/podman-upstream/podman.sock"
+        fi
+    fi
+fi
+
+exec "${PODMAN_ROOT}/bin/podman" "$@" 

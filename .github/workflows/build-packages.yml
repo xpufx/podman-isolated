@@ -1,6 +1,13 @@
 name: Build and Publish Packages
 
 on:
+  push:
+    branches:
+      - main
+      - isolated-podman
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
   schedule:
     # One cron per auto-updating track; the firing cron selects the track (see the
     # resolve-track job). Staggered so the "pages" concurrency group serializes them.
@@ -51,6 +58,8 @@ jobs:
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             TRACK="${{ inputs.build_track }}"
+          elif [[ "${{ github.event_name }}" == "push" ]]; then
+            TRACK="stable"
           else
             case "${{ github.event.schedule }}" in
               '30 4 * * *') TRACK="nightly" ;;
@@ -205,18 +214,19 @@ jobs:
             arch: amd64
             runner: ubuntu-24.04
             container: ''
-          - distro: '2404'
-            arch: arm64
-            runner: ubuntu-24.04-arm
-            container: ''
           - distro: '2604'
             arch: amd64
             runner: ubuntu-24.04
             container: ubuntu:26.04
-          - distro: '2604'
-            arch: arm64
-            runner: ubuntu-24.04-arm
-            container: ubuntu:26.04
+          # Note: ARM64 runners (ubuntu-24.04-arm) require GitHub Team / Enterprise.
+          # - distro: '2404'
+          #   arch: arm64
+          #   runner: ubuntu-24.04-arm
+          #   container: ''
+          # - distro: '2604'
+          #   arch: arm64
+          #   runner: ubuntu-24.04-arm
+          #   container: ubuntu:26.04
     steps:
       # 2604 cells start from a bare ubuntu:26.04 container as root, which lacks
       # the tooling the host runner images already ship (sudo + a sudo-capable
@@ -338,7 +348,13 @@ jobs:
                 val="${val%\"}"
                 val="${val#\"}"
                 ENV_ARGS="$ENV_ARGS ${key}=${val}"
+                if [[ "$key" == "PODMAN_TAG" ]]; then
+                  INSTALL_PREFIX="/opt/podman/releases/${val#v}"
+                fi
               done <<< "$RESOLVED"
+              if [[ -n "${INSTALL_PREFIX:-}" ]]; then
+                ENV_ARGS="$ENV_ARGS INSTALL_PREFIX=${INSTALL_PREFIX}"
+              fi
             else
               rc=$?
               if [[ "$rc" -eq 3 ]]; then
@@ -395,6 +411,12 @@ jobs:
           export DESTDIR="${{ runner.temp }}/podman-staging"
           if [[ "${{ steps.track.outputs.track }}" == "nightly" ]]; then
             export NIGHTLY_BUILD=true
+            export INSTALL_PREFIX="/opt/podman/releases/nightly"
+          elif [[ -f "versions-${{ steps.track.outputs.track }}.env" ]]; then
+            PODMAN_TAG_RAW="$(grep '^export PODMAN_TAG=' "versions-${{ steps.track.outputs.track }}.env" | cut -d= -f2 | tr -d '"' || true)"
+            if [[ -n "$PODMAN_TAG_RAW" ]]; then
+              export INSTALL_PREFIX="/opt/podman/releases/${PODMAN_TAG_RAW#v}"
+            fi
           fi
           ./scripts/package_all.sh
 
@@ -425,7 +447,7 @@ jobs:
     # leaves the publish running with only 2404 artifacts (publish_distro already
     # skips distros whose deb dir is empty). 'failure' covers partial cell failure
     # (fail-fast: false); 'cancelled'/'skipped' means no build ran at all.
-    if: always() && github.ref == 'refs/heads/main' && (needs.build.result == 'success' || needs.build.result == 'failure')
+    if: always() && github.ref == 'refs/heads/main' && (needs.build.result == 'success' || needs.build.result == 'failure') && secrets.GPG_PRIVATE_KEY != ''
     runs-on: ubuntu-24.04
     environment:
       name: github-pages

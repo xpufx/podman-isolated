@@ -213,13 +213,17 @@ echo ""
 
 # Check DESTDIR is set and exists
 if [[ -z "${DESTDIR:-}" ]]; then
-    echo "ERROR: DESTDIR environment variable is not set." >&2
-    echo "  DESTDIR must point to a populated staging tree." >&2
-    echo "  Example: export DESTDIR=/tmp/podman-staging" >&2
-    exit 1
+    if [[ "${INSTALL_PREFIX:-/usr}" != "/usr" && -d "${INSTALL_PREFIX}" ]]; then
+        DESTDIR=""
+    else
+        echo "ERROR: DESTDIR environment variable is not set." >&2
+        echo "  DESTDIR must point to a populated staging tree." >&2
+        echo "  Example: export DESTDIR=/tmp/podman-staging" >&2
+        exit 1
+    fi
 fi
 
-if [[ ! -d "${DESTDIR}" ]]; then
+if [[ -n "${DESTDIR}" && ! -d "${DESTDIR}" ]]; then
     echo "ERROR: DESTDIR directory does not exist: ${DESTDIR}" >&2
     echo "  Run build scripts with DESTDIR set to populate the staging tree first." >&2
     exit 1
@@ -298,6 +302,51 @@ source "${toolpath}/scripts/component_maps.sh"
 mkdir -p "${OUTPUT_DIR}"
 
 # ============================================
+# ============================================
+# Isolated Mode: Package Unified podman${SERIES}
+# ============================================
+if [[ "${INSTALL_PREFIX}" != "/usr" ]]; then
+    podman_tag="${COMPONENT_TAGS["podman"]:-}"
+    if [[ -z "${podman_tag}" ]]; then
+        podman_tag="$(resolve_tag_from_repo "podman")"
+    fi
+    suite_version="$(extract_version "${podman_tag}" "podman")${VERSION_SUFFIX}"
+    series="$(echo "${podman_tag#v}" | cut -d. -f1)"
+    pkg_name="podman${series}"
+
+    echo "========================================"
+    echo ">>> Packaging Isolated Suite: ${pkg_name} (${suite_version})"
+    echo "========================================"
+
+    export PACKAGE_NAME="${pkg_name}"
+    export VERSION="${suite_version}"
+    export ARCH="${ARCH}"
+    export DESTDIR="${DESTDIR:-}"
+    export INSTALL_PREFIX="${INSTALL_PREFIX}"
+
+    # Auto-detect dynamic library dependencies across shipped binaries
+    component_bins=()
+    for b in "${DESTDIR:-}${INSTALL_PREFIX}/bin/"* "${DESTDIR:-}${INSTALL_PREFIX}/libexec/podman/"*; do
+        if [[ -f "$b" && -x "$b" && ! -L "$b" ]]; then
+            component_bins+=("$b")
+        fi
+    done
+    detected_items="$(detect_runtime_depends "${component_bins[@]}" | sed 's/^/  - /')"
+    export DETECTED_DEPENDS="${detected_items}"
+
+    nfpm_config="$(mktemp)"
+    envsubst '${PACKAGE_NAME} ${VERSION} ${ARCH} ${DESTDIR} ${INSTALL_PREFIX} ${DETECTED_DEPENDS}'         < "${NFPM_DIR}/podman-isolated.yaml" > "${nfpm_config}"
+
+    nfpm pkg         --config "${nfpm_config}"         --target "${OUTPUT_DIR}"         --packager deb
+    rm -f "${nfpm_config}"
+
+    echo ">>> Generated isolated package in ${OUTPUT_DIR}"
+    echo "========================================"
+    echo ">>> Packaging Complete"
+    echo "========================================"
+    exit 0
+fi
+
 # Package Components
 # ============================================
 

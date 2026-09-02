@@ -1,0 +1,41 @@
+name: "${PACKAGE_NAME}"
+arch: "${ARCH}"
+platform: linux
+version: "${VERSION}"
+version_schema: none
+maintainer: "Podman Isolated <noreply@github.com>"
+description: "Isolated upstream Podman container engine and companion OCI stack in ${INSTALL_PREFIX}"
+vendor: "podman-isolated"
+homepage: "https://github.com/xpufx/podman-isolated"
+license: "Apache-2.0"
+section: admin
+priority: optional
+
+depends:
+  - iptables
+  - nftables
+  - uidmap
+${DETECTED_DEPENDS}
+
+contents:
+  - src: "${DESTDIR}${INSTALL_PREFIX}/bin/"
+    dst: "${INSTALL_PREFIX}/bin/"
+    type: tree
+  - src: "${DESTDIR}${INSTALL_PREFIX}/libexec/"
+    dst: "${INSTALL_PREFIX}/libexec/"
+    type: tree
+  - src: "${DESTDIR}${INSTALL_PREFIX}/etc/"
+    dst: "${INSTALL_PREFIX}/etc/"
+    type: tree
+  - src: "${DESTDIR}${INSTALL_PREFIX}/share/"
+    dst: "${INSTALL_PREFIX}/share/"
+    type: tree
+  - src: "${DESTDIR}${INSTALL_PREFIX}/lib/"
+    dst: "${INSTALL_PREFIX}/lib/"
+    type: tree
+  - src: "${INSTALL_PREFIX}/bin/podman-upstream"
+    dst: /usr/local/bin/podman-upstream
+    type: symlink
+  - src: "${INSTALL_PREFIX}/bin/podman-upstream"
+    dst: /usr/local/bin/${PACKAGE_NAME}
+    type: symlink
