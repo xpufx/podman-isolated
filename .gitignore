@@ -4,3 +4,4 @@ phase1-build2.sh
 # Build cache (cloned upstream sources + per-component logs)
 build/
 log/
+output/
