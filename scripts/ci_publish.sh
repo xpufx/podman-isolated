@@ -657,6 +657,7 @@ echo ">>> Generating index.html landing page..."
 # entities are not double-escaped.
 esc() { sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g; s/"/\&quot;/g'; }
 
+touch "${OUTPUT_DIR}/.nojekyll"
 cat > "${OUTPUT_DIR}/index.html" << 'HTMLEOF'
 <!DOCTYPE html>
 <html lang="en">
