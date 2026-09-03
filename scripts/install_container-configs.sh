@@ -77,6 +77,15 @@ install -m 0644 "${BUILD_ROOT}/container-libs/image/default-policy.json" "${DEST
 echo "  Installing default.yaml -> ${DESTDIR:-}${CFG_ROOT}/registries.d/default.yaml"
 install -m 0644 "${BUILD_ROOT}/container-libs/image/default.yaml" "${DESTDIR:-}${CFG_ROOT}/registries.d/default.yaml"
 
+# Derive package/major series name (e.g. podman6, podman5)
+rel_ver="$(basename "${INSTALL_PREFIX}")"
+major="${rel_ver%%.*}"
+if [[ "${major}" =~ ^[0-9]+$ ]]; then
+    PKG_NAME="podman${major}"
+else
+    PKG_NAME="podman6"
+fi
+
 # 5. storage.conf
 # Install upstream template. In isolated mode, generate separate rootless
 # (storage.conf) and rootful (storage-root.conf) configurations with isolated
@@ -85,13 +94,13 @@ echo "  Installing storage.conf -> ${DESTDIR:-}${CFG_ROOT}/storage.conf"
 install -m 0644 "${BUILD_ROOT}/container-libs/storage/storage.conf" "${DESTDIR:-}${CFG_ROOT}/storage.conf"
 if [[ "${ISOLATED}" == "1" ]]; then
     # In storage.conf (used for rootless): inject runroot directly under [storage]
-    # Do NOT inject graphroot here so rootless defaults cleanly to XDG_DATA_HOME.
-    sed -i '/^\[storage\]/a runroot = "/run/user/$UID/podman-upstream/storage"' "${DESTDIR:-}${CFG_ROOT}/storage.conf"
+    # Do NOT inject graphroot here so rootless defaults cleanly to user's XDG_DATA_HOME.
+    sed -i "/^\[storage\]/a runroot = \"/run/user/\$UID/${PKG_NAME}/storage\"" "${DESTDIR:-}${CFG_ROOT}/storage.conf"
 
-    # In storage-root.conf (used for rootful/sudo): pin both graphroot and runroot
+    # In storage-root.conf (used for rootful/sudo): pin persistent graphroot and runroot
     cp "${DESTDIR:-}${CFG_ROOT}/storage.conf" "${DESTDIR:-}${CFG_ROOT}/storage-root.conf"
-    sed -i 's|runroot = "/run/user/\$UID/podman-upstream/storage"|runroot = "/run/podman-upstream/storage"|' "${DESTDIR:-}${CFG_ROOT}/storage-root.conf"
-    sed -i "/^\[storage\]/a graphroot = \"${INSTALL_PREFIX}/var/lib/containers/storage\"" "${DESTDIR:-}${CFG_ROOT}/storage-root.conf"
+    sed -i "s|runroot = \"/run/user/\\\$UID/${PKG_NAME}/storage\"|runroot = \"/run/${PKG_NAME}/storage\"|" "${DESTDIR:-}${CFG_ROOT}/storage-root.conf"
+    sed -i "/^\[storage\]/a graphroot = \"/var/lib/${PKG_NAME}/storage\"" "${DESTDIR:-}${CFG_ROOT}/storage-root.conf"
 fi
 
 # 6. registries.conf
@@ -104,43 +113,44 @@ if [[ "${ISOLATED}" == "1" ]] && ! grep -q '^unqualified-search-registries' "${D
     printf '\nunqualified-search-registries = ["docker.io"]\n' >> "${DESTDIR:-}${CFG_ROOT}/registries.conf"
 fi
 
-# 7. podman-upstream wrapper (isolated mode ONLY).
+# 7. podman-wrapper (isolated mode ONLY).
 # The isolated tree is non-functional as a default invocation without it
 # (raw podman leaks to /usr). Install it next to the prefix binaries so it is
 # the natural entrypoint. Skipped entirely in system mode (/usr) to keep that
 # install bit-for-bit upstream-compatible.
 if [[ "${ISOLATED}" == "1" ]]; then
-    echo "  Installing podman-upstream -> ${DESTDIR:-}${INSTALL_PREFIX}/bin/podman-upstream"
-    install -m 0755 "${toolpath}/podman-upstream.sh" "${DESTDIR:-}${INSTALL_PREFIX}/bin/podman-upstream"
+    echo "  Installing podman-wrapper -> ${DESTDIR:-}${INSTALL_PREFIX}/bin/podman-wrapper"
+    install -m 0755 "${toolpath}/podman-wrapper.sh" "${DESTDIR:-}${INSTALL_PREFIX}/bin/podman-wrapper"
+    ln -sf "podman-wrapper" "${DESTDIR:-}${INSTALL_PREFIX}/bin/${PKG_NAME}"
 fi
 
 # 8. Isolated systemd unit files (isolated mode ONLY).
 # Stock podman unit files hardcode /usr paths and the %t/podman/podman.sock socket,
 # which collides with Ubuntu host podman daemon. We generate isolated units.
 if [[ "${ISOLATED}" == "1" ]]; then
-    echo "  Configuring isolated systemd units..."
+    echo "  Configuring isolated systemd units (${PKG_NAME})..."
     mkdir -p "${DESTDIR:-}${INSTALL_PREFIX}/lib/systemd/user"
     mkdir -p "${DESTDIR:-}${INSTALL_PREFIX}/lib/systemd/system"
 
     # User socket & service
-    cat << EOF > "${DESTDIR:-}${INSTALL_PREFIX}/lib/systemd/user/podman-upstream.socket"
+    cat << EOF > "${DESTDIR:-}${INSTALL_PREFIX}/lib/systemd/user/${PKG_NAME}.socket"
 [Unit]
-Description=Isolated Upstream Podman API Socket
+Description=Isolated Podman (${PKG_NAME}) API Socket
 Documentation=man:podman-system-service(1)
 
 [Socket]
-ListenStream=%t/podman-upstream/podman.sock
+ListenStream=%t/${PKG_NAME}/podman.sock
 SocketMode=0660
 
 [Install]
 WantedBy=sockets.target
 EOF
 
-    cat << EOF > "${DESTDIR:-}${INSTALL_PREFIX}/lib/systemd/user/podman-upstream.service"
+    cat << EOF > "${DESTDIR:-}${INSTALL_PREFIX}/lib/systemd/user/${PKG_NAME}.service"
 [Unit]
-Description=Isolated Upstream Podman API Service
-Requires=podman-upstream.socket
-After=podman-upstream.socket
+Description=Isolated Podman (${PKG_NAME}) API Service
+Requires=${PKG_NAME}.socket
+After=${PKG_NAME}.socket
 Documentation=man:podman-system-service(1)
 StartLimitIntervalSec=0
 
@@ -149,31 +159,31 @@ Delegate=true
 Type=exec
 KillMode=process
 Environment=LOGGING="--log-level=info"
-ExecStart=${INSTALL_PREFIX}/bin/podman-upstream \$LOGGING system service
+ExecStart=${INSTALL_PREFIX}/bin/podman-wrapper \$LOGGING system service
 
 [Install]
 WantedBy=default.target
 EOF
 
     # System socket & service
-    cat << EOF > "${DESTDIR:-}${INSTALL_PREFIX}/lib/systemd/system/podman-upstream.socket"
+    cat << EOF > "${DESTDIR:-}${INSTALL_PREFIX}/lib/systemd/system/${PKG_NAME}.socket"
 [Unit]
-Description=Isolated Upstream Podman API Socket (System)
+Description=Isolated Podman (${PKG_NAME}) API Socket (System)
 Documentation=man:podman-system-service(1)
 
 [Socket]
-ListenStream=/run/podman-upstream/podman.sock
+ListenStream=/run/${PKG_NAME}/podman.sock
 SocketMode=0660
 
 [Install]
 WantedBy=sockets.target
 EOF
 
-    cat << EOF > "${DESTDIR:-}${INSTALL_PREFIX}/lib/systemd/system/podman-upstream.service"
+    cat << EOF > "${DESTDIR:-}${INSTALL_PREFIX}/lib/systemd/system/${PKG_NAME}.service"
 [Unit]
-Description=Isolated Upstream Podman API Service (System)
-Requires=podman-upstream.socket
-After=podman-upstream.socket
+Description=Isolated Podman (${PKG_NAME}) API Service (System)
+Requires=${PKG_NAME}.socket
+After=${PKG_NAME}.socket
 Documentation=man:podman-system-service(1)
 StartLimitIntervalSec=0
 
@@ -182,13 +192,13 @@ Delegate=true
 Type=exec
 KillMode=process
 Environment=LOGGING="--log-level=info"
-ExecStart=${INSTALL_PREFIX}/bin/podman-upstream \$LOGGING system service
+ExecStart=${INSTALL_PREFIX}/bin/podman-wrapper \$LOGGING system service
 
 [Install]
 WantedBy=default.target
 EOF
 
-    # Remove colliding un-isolated units that make install might have staged
+        # Remove colliding un-isolated units that make install might have staged
     rm -f "${DESTDIR:-}${INSTALL_PREFIX}/lib/systemd/user/podman.socket" \
           "${DESTDIR:-}${INSTALL_PREFIX}/lib/systemd/user/podman.service" \
           "${DESTDIR:-}${INSTALL_PREFIX}/lib/systemd/system/podman.socket" \

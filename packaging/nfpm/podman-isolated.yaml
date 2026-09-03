@@ -33,9 +33,6 @@ contents:
   - src: "${DESTDIR}${INSTALL_PREFIX}/lib/"
     dst: "${INSTALL_PREFIX}/lib/"
     type: tree
-  - src: "${INSTALL_PREFIX}/bin/podman-upstream"
-    dst: /usr/local/bin/podman-upstream
-    type: symlink
-  - src: "${INSTALL_PREFIX}/bin/podman-upstream"
+  - src: "${INSTALL_PREFIX}/bin/podman-wrapper"
     dst: /usr/local/bin/${PACKAGE_NAME}
     type: symlink

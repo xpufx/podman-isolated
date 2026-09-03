@@ -55,16 +55,16 @@ All releases live under `/opt/podman/` in isolated, versioned directory trees:
 │   └── 5.4.0/                   # Co-existing earlier release
 ├── current -> releases/6.1.0    # Active version pointer
 └── bin/
-    └── podman-upstream          # Environment-isolating runner script
+    └── podman6          # Environment-isolating runner script
 ```
 
 The host system's `/usr/bin/podman`, `/etc/containers/`, `/var/lib/containers/`, and `~/.local/share/containers/` remain 100% untouched.
 
 ---
 
-## The `podman-upstream` Wrapper
+## The Isolated Podman Wrapper
 
-Running `/opt/podman/bin/podman-upstream` (or symlinked to `~/.local/bin/podman-upstream`) sets up the hermetic environment before launching the engine:
+Running `/opt/podman/bin/podman6` (or symlinked to `~/.local/bin/podman6`) sets up the hermetic environment before launching the engine:
 
 * Pins `PATH` and `CONTAINERS_HELPER_BINARY_DIR` to the prefix.
 * Directs `CONTAINERS_CONF` to the prefix-local `containers.conf`.
@@ -73,7 +73,7 @@ Running `/opt/podman/bin/podman-upstream` (or symlinked to `~/.local/bin/podman-
 
 ```bash
 # Verify upstream Podman version
-podman-upstream version
+podman6 version
 
 # Ubuntu's system Podman remains unaffected
 podman version
@@ -129,7 +129,7 @@ Each release builds and packages the complete modern OCI stack:
    ```bash
    ln -sfn releases/6.1.0 /opt/podman/current
    mkdir -p ~/.local/bin
-   ln -sfn /opt/podman/bin/podman-upstream ~/.local/bin/podman-upstream
+   ln -sfn /opt/podman/bin/podman6 ~/.local/bin/podman6
    ```
 
 ---

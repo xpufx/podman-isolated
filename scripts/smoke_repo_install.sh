@@ -216,9 +216,13 @@ if apt-cache show podman-suite >/dev/null 2>&1; then
 elif apt-cache show podman6 >/dev/null 2>&1; then
     apt-get install -y -q podman6
     podman6 info --log-level=error
+    useradd -m smokeuser
+    su smokeuser -c "podman6 info --log-level=error"
 elif apt-cache show podman5 >/dev/null 2>&1; then
     apt-get install -y -q podman5
     podman5 info --log-level=error
+    useradd -m smokeuser
+    su smokeuser -c "podman5 info --log-level=error"
 else
     echo "ERROR: Neither podman-suite nor podman6/5 found in repo" >&2
     exit 1

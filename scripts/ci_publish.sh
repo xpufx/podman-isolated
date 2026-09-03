@@ -795,7 +795,7 @@ track is distro-qualified only — always use <code>v5-2404</code> / <code>v5-26
 <pre><code>sudo apt-get update
 sudo apt-get install podman6</code></pre>
 <p><em>(For the v5 track, run <code>sudo apt-get install podman5</code>)</em></p>
-<p>The package installs the complete standalone Podman stack into <code>/opt/podman/releases/&lt;version&gt;/</code> and provides <code>podman6</code> (or <code>podman5</code>) and <code>podman-upstream</code> in <code>/usr/local/bin/</code>.</p>
+<p>The package installs the complete standalone Podman stack into <code>/opt/podman/releases/&lt;version&gt;/</code> and provides <code>podman6</code> (or <code>podman5</code>) in <code>/usr/local/bin/</code>.</p>
 
 <h2>Package Versions</h2>
 HTMLEOF
