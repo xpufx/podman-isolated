@@ -161,7 +161,7 @@ jobs:
       - name: Compare resolved versions against the live repository
         id: guard
         run: |
-          REPO_URL="https://${{ github.repository_owner }}.github.io/podman-isolated-pkgs"
+          REPO_URL="https://${{ github.repository_owner }}.github.io/podman-isolated-pkgs/apt"
           ./scripts/check_republish_needed.sh "${{ needs.resolve-track.outputs.track }}" "${REPO_URL}"
 
   # ============================================
@@ -531,7 +531,7 @@ jobs:
         env:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
         run: |
-          REPO_URL="https://${{ github.repository_owner }}.github.io/podman-isolated-pkgs"
+          REPO_URL="https://${{ github.repository_owner }}.github.io/podman-isolated-pkgs/apt"
           TRACK="${{ steps.track.outputs.track }}"
 
           # publish_distro <compact-label> <deb-dir>: skip (with a logged
