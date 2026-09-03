@@ -431,7 +431,10 @@ jobs:
           # CICD-07: distro + arch in the artifact name — the four names are
           # debs-2404-amd64, debs-2404-arm64, debs-2604-amd64, debs-2604-arm64.
           name: debs-${{ matrix.distro }}-${{ matrix.arch }}
-          path: output/*.deb
+          path: |
+            output/*.deb
+            output/*.tar.gz
+            output/*.sha256
           # The publish job consumes these within the same run; retention only
           # serves post-hoc debugging. Kept short so daily nightly x 4 cells
           # don't accumulate ~30 days of .deb artifacts in Actions storage.
@@ -607,6 +610,9 @@ jobs:
           mkdir -p apt arch rpm releases
           mv dists pool apt/
 
+          # Copy standalone tarballs to releases/
+          find ../all-debs-2404 ../all-debs-2604 -type f \( -name '*.tar.gz' -o -name '*.sha256' \) -exec cp -f {} releases/ \; 2>/dev/null || true
+
           cat > arch/README.md << 'EOF'
           # Arch Linux Packages
 
@@ -641,9 +647,19 @@ jobs:
           cat > releases/README.md << 'EOF'
           # Generic Linux Standalone Releases
 
-          Self-contained binary tarballs of isolated Podman releases.
+          Self-contained binary tarballs of isolated upstream Podman and its OCI stack (crun, conmon, netavark, aardvark-dns).
 
-          Packages extract into `/opt/podman/releases/<version>/` with companion symlinks in `/usr/local/bin/`.
+          ### Installation
+          ```bash
+          # Download tarball (e.g. for amd64)
+          curl -LO https://${{ github.repository_owner }}.github.io/podman-isolated-pkgs/releases/podman-isolated-6.1.0-linux-amd64.tar.gz
+
+          # Extract and run installer
+          tar -xzf podman-isolated-6.1.0-linux-amd64.tar.gz
+          sudo ./install.sh
+          ```
+
+          Installs to `/opt/podman/releases/<version>/` with `/usr/bin/podman6` entrypoint.
           EOF
           sed -i 's/^          //' releases/README.md
 
@@ -670,3 +686,31 @@ jobs:
           git commit -m "deploy: update multi-distro repository (${{ steps.track.outputs.track }})"
           git remote add origin git@github.com:${{ github.repository_owner }}/podman-isolated-pkgs.git
           git push -f origin main:main
+
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd repo-output/releases
+          tarballs=(*.tar.gz)
+          if [[ -e "${tarballs[0]}" ]]; then
+            echo ">>> Creating GitHub Release for standalone tarballs..."
+            # Extract version from first tarball name: podman-isolated-<version>-linux-...
+            # e.g. podman-isolated-6.1.0-linux-amd64.tar.gz -> v6.1.0
+            ver=$(ls *.tar.gz | head -n 1 | sed -E 's/podman-isolated-([0-9.]+)-linux.*/\1/')
+            tag="v${ver}"
+            
+            # Combine sha256 sums
+            cat *.sha256 > SHA256SUMS 2>/dev/null || true
+            
+            assets=(*.tar.gz)
+            [[ -f SHA256SUMS ]] && assets+=(SHA256SUMS)
+            
+            # Use gh release create (or upload if tag exists)
+            if gh release view "${tag}" >/dev/null 2>&1; then
+              gh release upload "${tag}" "${assets[@]}" --clobber
+            else
+              gh release create "${tag}" "${assets[@]}"                 --title "Podman Isolated ${tag}"                 --notes "Standalone binary releases for isolated upstream Podman.
+Extract to \`/opt/podman/releases/${ver}\` or run \`sudo ./install.sh\` from within the archive."
+            fi
+          fi

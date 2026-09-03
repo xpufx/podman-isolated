@@ -391,6 +391,12 @@ for fname in os.listdir(output_dir):
 PYCLEAN
 
     echo ">>> Generated isolated package in ${OUTPUT_DIR}"
+
+    # Also generate standalone tarball
+    if [[ -x "${toolpath}/scripts/package_tarball.sh" ]]; then
+        "${toolpath}/scripts/package_tarball.sh" "${OUTPUT_DIR}"
+    fi
+
     echo "========================================"
     echo ">>> Packaging Complete"
     echo "========================================"
