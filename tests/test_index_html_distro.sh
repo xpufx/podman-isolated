@@ -66,7 +66,7 @@ assert_contains "$SRC" "v5-2604"                "suite v5-2604 in heredoc"
 assert_contains "$SRC" "nightly-2604"           "suite nightly-2604 in heredoc"
 
 # ----- DEB822 Signed-By keyring path (ROADMAP SC-4) -----
-assert_contains "$SRC" "Signed-By: /etc/apt/keyrings/podman-ubuntu.gpg" \
+assert_contains "$SRC" "Signed-By: /etc/apt/keyrings/podman-isolated.gpg" \
                                                 "DEB822 Signed-By keyring path present"
 
 # ----- Deprecation callout link (MIGR-03 — shared anchor with Plan 01) -----

@@ -161,7 +161,7 @@ jobs:
       - name: Compare resolved versions against the live repository
         id: guard
         run: |
-          REPO_URL="https://${{ github.repository_owner }}.github.io/podman-isolated-ppa"
+          REPO_URL="https://${{ github.repository_owner }}.github.io/podman-isolated-pkgs"
           ./scripts/check_republish_needed.sh "${{ needs.resolve-track.outputs.track }}" "${REPO_URL}"
 
   # ============================================
@@ -457,7 +457,7 @@ jobs:
     runs-on: ubuntu-24.04
     environment:
       name: ppa
-      url: https://${{ github.repository_owner }}.github.io/podman-isolated-ppa/
+      url: https://${{ github.repository_owner }}.github.io/podman-isolated-pkgs/
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -528,7 +528,7 @@ jobs:
         env:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
         run: |
-          REPO_URL="https://${{ github.repository_owner }}.github.io/podman-isolated-ppa"
+          REPO_URL="https://${{ github.repository_owner }}.github.io/podman-isolated-pkgs"
           TRACK="${{ steps.track.outputs.track }}"
 
           # publish_distro <compact-label> <deb-dir>: skip (with a logged
@@ -608,5 +608,5 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -A
           git commit -m "deploy: update APT repository (${{ steps.track.outputs.track }})"
-          git remote add origin git@github.com:${{ github.repository_owner }}/podman-isolated-ppa.git
+          git remote add origin git@github.com:${{ github.repository_owner }}/podman-isolated-pkgs.git
           git push -f origin main:main

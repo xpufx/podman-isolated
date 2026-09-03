@@ -715,15 +715,18 @@ th { background: #f4f4f4; }
 <h2>Setup</h2>
 
 <div class="distro-group">
-  <strong>Your Ubuntu version:</strong>
+  <strong>Distribution:</strong>
   <button class="distro-btn active" onclick="setDistro('2404')">Ubuntu 24.04</button>
   <button class="distro-btn" onclick="setDistro('2604')">Ubuntu 26.04</button>
+  <button class="distro-btn" onclick="setDistro('debian')">Debian (12/13)</button>
+  <button class="distro-btn" onclick="setDistro('arch')">Arch Linux</button>
+  <button class="distro-btn" onclick="setDistro('tarball')">Generic Linux</button>
 </div>
 
 <p>1. Import the signing key:</p>
 <pre><code>sudo mkdir -p /etc/apt/keyrings
-curl -fsSL https://REPO_URL_PLACEHOLDER/podman-ubuntu.gpg \
-  | sudo tee /etc/apt/keyrings/podman-ubuntu.gpg > /dev/null</code></pre>
+curl -fsSL https://REPO_URL_PLACEHOLDER/podman-isolated.gpg \
+  | sudo tee /etc/apt/keyrings/podman-isolated.gpg > /dev/null</code></pre>
 
 <p>2. Add the repository — pick your track:</p>
 <div class="tab-group">
@@ -733,51 +736,51 @@ curl -fsSL https://REPO_URL_PLACEHOLDER/podman-ubuntu.gpg \
     <button class="tab-btn" onclick="showTab('nightly')">nightly</button>
   </div>
   <div id="tab-stable" class="tab-content active">
-    <pre class="snippet" data-distro="2404"><code>sudo tee /etc/apt/sources.list.d/podman-ubuntu.sources &lt;&lt; 'EOF'
+    <pre class="snippet" data-distro="2404"><code>sudo tee /etc/apt/sources.list.d/podman-isolated.sources &lt;&lt; 'EOF'
 Types: deb
 URIs: https://REPO_URL_PLACEHOLDER
 Suites: stable-2404
 Components: main
-Signed-By: /etc/apt/keyrings/podman-ubuntu.gpg
+Signed-By: /etc/apt/keyrings/podman-isolated.gpg
 EOF</code></pre>
-    <pre class="snippet" data-distro="2604" style="display:none"><code>sudo tee /etc/apt/sources.list.d/podman-ubuntu.sources &lt;&lt; 'EOF'
+    <pre class="snippet" data-distro="2604" style="display:none"><code>sudo tee /etc/apt/sources.list.d/podman-isolated.sources &lt;&lt; 'EOF'
 Types: deb
 URIs: https://REPO_URL_PLACEHOLDER
 Suites: stable-2604
 Components: main
-Signed-By: /etc/apt/keyrings/podman-ubuntu.gpg
+Signed-By: /etc/apt/keyrings/podman-isolated.gpg
 EOF</code></pre>
   </div>
   <div id="tab-v5" class="tab-content">
-    <pre class="snippet" data-distro="2404"><code>sudo tee /etc/apt/sources.list.d/podman-ubuntu.sources &lt;&lt; 'EOF'
+    <pre class="snippet" data-distro="2404"><code>sudo tee /etc/apt/sources.list.d/podman-isolated.sources &lt;&lt; 'EOF'
 Types: deb
 URIs: https://REPO_URL_PLACEHOLDER
 Suites: v5-2404
 Components: main
-Signed-By: /etc/apt/keyrings/podman-ubuntu.gpg
+Signed-By: /etc/apt/keyrings/podman-isolated.gpg
 EOF</code></pre>
-    <pre class="snippet" data-distro="2604" style="display:none"><code>sudo tee /etc/apt/sources.list.d/podman-ubuntu.sources &lt;&lt; 'EOF'
+    <pre class="snippet" data-distro="2604" style="display:none"><code>sudo tee /etc/apt/sources.list.d/podman-isolated.sources &lt;&lt; 'EOF'
 Types: deb
 URIs: https://REPO_URL_PLACEHOLDER
 Suites: v5-2604
 Components: main
-Signed-By: /etc/apt/keyrings/podman-ubuntu.gpg
+Signed-By: /etc/apt/keyrings/podman-isolated.gpg
 EOF</code></pre>
   </div>
   <div id="tab-nightly" class="tab-content">
-    <pre class="snippet" data-distro="2404"><code>sudo tee /etc/apt/sources.list.d/podman-ubuntu.sources &lt;&lt; 'EOF'
+    <pre class="snippet" data-distro="2404"><code>sudo tee /etc/apt/sources.list.d/podman-isolated.sources &lt;&lt; 'EOF'
 Types: deb
 URIs: https://REPO_URL_PLACEHOLDER
 Suites: nightly-2404
 Components: main
-Signed-By: /etc/apt/keyrings/podman-ubuntu.gpg
+Signed-By: /etc/apt/keyrings/podman-isolated.gpg
 EOF</code></pre>
-    <pre class="snippet" data-distro="2604" style="display:none"><code>sudo tee /etc/apt/sources.list.d/podman-ubuntu.sources &lt;&lt; 'EOF'
+    <pre class="snippet" data-distro="2604" style="display:none"><code>sudo tee /etc/apt/sources.list.d/podman-isolated.sources &lt;&lt; 'EOF'
 Types: deb
 URIs: https://REPO_URL_PLACEHOLDER
 Suites: nightly-2604
 Components: main
-Signed-By: /etc/apt/keyrings/podman-ubuntu.gpg
+Signed-By: /etc/apt/keyrings/podman-isolated.gpg
 EOF</code></pre>
   </div>
 </div>
@@ -850,7 +853,8 @@ cat >> "${OUTPUT_DIR}/index.html" << 'HTMLEOF'
 
 <h2>Resources</h2>
 <ul>
-<li><a href="podman-ubuntu.gpg">GPG signing key</a></li>
+<li><a href="podman-isolated.gpg">GPG signing key (podman-isolated.gpg)</a></li>
+<li><a href="podman-ubuntu.gpg">Legacy key alias (podman-ubuntu.gpg)</a></li>
 </ul>
 
 <script>

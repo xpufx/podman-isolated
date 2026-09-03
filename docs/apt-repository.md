@@ -18,12 +18,12 @@ First install the GPG signing key (see [GPG Signing Key](#gpg-signing-key) below
 
 ```bash
 # Add the repository (DEB822 format)
-sudo tee /etc/apt/sources.list.d/podman-ubuntu.sources << 'EOF'
+sudo tee /etc/apt/sources.list.d/podman-isolated.sources << 'EOF'
 Types: deb
 URIs: https://slazarov.github.io/podman-ubuntu
 Suites: stable-2404
 Components: main
-Signed-By: /etc/apt/keyrings/podman-ubuntu.gpg
+Signed-By: /etc/apt/keyrings/podman-isolated.gpg
 EOF
 
 # Update and install
@@ -39,12 +39,12 @@ First install the GPG signing key (see [GPG Signing Key](#gpg-signing-key) below
 
 ```bash
 # Add the repository (DEB822 format)
-sudo tee /etc/apt/sources.list.d/podman-ubuntu.sources << 'EOF'
+sudo tee /etc/apt/sources.list.d/podman-isolated.sources << 'EOF'
 Types: deb
 URIs: https://slazarov.github.io/podman-ubuntu
 Suites: stable-2604
 Components: main
-Signed-By: /etc/apt/keyrings/podman-ubuntu.gpg
+Signed-By: /etc/apt/keyrings/podman-isolated.gpg
 EOF
 
 # Update and install
@@ -58,13 +58,13 @@ The `podman-suite` meta-package installs all components. See [Individual Package
 
 ## GPG Signing Key
 
-The signing key is the same for every Ubuntu version and every track -- download it once. Both per-distro setup sections above reference the same `Signed-By` path (`/etc/apt/keyrings/podman-ubuntu.gpg`):
+The signing key is the same for every Ubuntu version and every track -- download it once. Both per-distro setup sections above reference the same `Signed-By` path (`/etc/apt/keyrings/podman-isolated.gpg`):
 
 ```bash
 # Download the GPG signing key
 sudo mkdir -p /etc/apt/keyrings
-sudo wget -qO /etc/apt/keyrings/podman-ubuntu.gpg \
-  https://slazarov.github.io/podman-ubuntu/podman-ubuntu.gpg
+sudo wget -qO /etc/apt/keyrings/podman-isolated.gpg \
+  https://slazarov.github.io/podman-ubuntu/podman-isolated.gpg
 ```
 
 ## Track Selection
@@ -123,10 +123,10 @@ The bare suite names continue to serve **Ubuntu 24.04** packages during the depr
 
 ```bash
 # Ubuntu 24.04 users
-sudo sed -i 's/Suites: stable$/Suites: stable-2404/' /etc/apt/sources.list.d/podman-ubuntu.sources
+sudo sed -i 's/Suites: stable$/Suites: stable-2404/' /etc/apt/sources.list.d/podman-isolated.sources
 
 # Ubuntu 26.04 users
-sudo sed -i 's/Suites: stable$/Suites: stable-2604/' /etc/apt/sources.list.d/podman-ubuntu.sources
+sudo sed -i 's/Suites: stable$/Suites: stable-2604/' /etc/apt/sources.list.d/podman-isolated.sources
 ```
 
 For the nightly track, substitute `nightly` for `stable` on both sides of the replacement (e.g. `s/Suites: nightly$/Suites: nightly-2404/`). The `v5` track has no bare alias, so set it directly to `v5-2404` / `v5-2604`.
@@ -134,24 +134,24 @@ For the nightly track, substitute `nightly` for `stable` on both sides of the re
 **Option 2 -- paste the full replacement block.** Overwrite the `.sources` file with the distro-qualified block. Ubuntu 24.04:
 
 ```bash
-sudo tee /etc/apt/sources.list.d/podman-ubuntu.sources << 'EOF'
+sudo tee /etc/apt/sources.list.d/podman-isolated.sources << 'EOF'
 Types: deb
 URIs: https://slazarov.github.io/podman-ubuntu
 Suites: stable-2404
 Components: main
-Signed-By: /etc/apt/keyrings/podman-ubuntu.gpg
+Signed-By: /etc/apt/keyrings/podman-isolated.gpg
 EOF
 ```
 
 Ubuntu 26.04:
 
 ```bash
-sudo tee /etc/apt/sources.list.d/podman-ubuntu.sources << 'EOF'
+sudo tee /etc/apt/sources.list.d/podman-isolated.sources << 'EOF'
 Types: deb
 URIs: https://slazarov.github.io/podman-ubuntu
 Suites: stable-2604
 Components: main
-Signed-By: /etc/apt/keyrings/podman-ubuntu.gpg
+Signed-By: /etc/apt/keyrings/podman-isolated.gpg
 EOF
 ```
 
@@ -164,32 +164,32 @@ After editing, run `sudo apt update` to refresh the package lists.
 Verify the key was downloaded correctly:
 
 ```bash
-file /etc/apt/keyrings/podman-ubuntu.gpg
+file /etc/apt/keyrings/podman-isolated.gpg
 ```
 
 Expected output should show "PGP/GPG key public ring" or similar binary key format. If it shows HTML or text, the download URL may have changed. Re-download:
 
 ```bash
-sudo wget -qO /etc/apt/keyrings/podman-ubuntu.gpg \
-  https://slazarov.github.io/podman-ubuntu/podman-ubuntu.gpg
+sudo wget -qO /etc/apt/keyrings/podman-isolated.gpg \
+  https://slazarov.github.io/podman-ubuntu/podman-isolated.gpg
 ```
 
 ### Signature verification errors on apt update
 
 If you see errors like `The following signatures couldn't be verified` or `NO_PUBKEY`:
 
-1. Ensure the key file is binary format (not ASCII-armored). Check with `file /etc/apt/keyrings/podman-ubuntu.gpg` -- it should not start with `-----BEGIN`.
+1. Ensure the key file is binary format (not ASCII-armored). Check with `file /etc/apt/keyrings/podman-isolated.gpg` -- it should not start with `-----BEGIN`.
 
 2. If you have an ASCII-armored key (.asc file), convert it:
 
 ```bash
-sudo gpg --dearmor -o /etc/apt/keyrings/podman-ubuntu.gpg /etc/apt/keyrings/podman-ubuntu.asc
+sudo gpg --dearmor -o /etc/apt/keyrings/podman-isolated.gpg /etc/apt/keyrings/podman-ubuntu.asc
 ```
 
 3. Verify the `Signed-By` path in your sources file matches the key location:
 
 ```bash
-cat /etc/apt/sources.list.d/podman-ubuntu.sources
+cat /etc/apt/sources.list.d/podman-isolated.sources
 ```
 
 ### Repository returns 404

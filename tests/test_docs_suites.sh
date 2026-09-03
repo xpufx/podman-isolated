@@ -37,7 +37,7 @@ assert_contains "$DOC" "nightly-2404" "24.04 nightly suite name present"
 assert_contains "$DOC" "nightly-2604" "26.04 nightly suite name present"
 
 # --- Positive assertions: keyring path, migration header, deprecation wording ---
-assert_contains "$DOC" "Signed-By: /etc/apt/keyrings/podman-ubuntu.gpg" "single Signed-By keyring path present"
+assert_contains "$DOC" "Signed-By: /etc/apt/keyrings/podman-isolated.gpg" "single Signed-By keyring path present"
 assert_contains "$DOC" "Migrating from Bare Suite Names" "migration section header present"
 assert_contains "$DOC" "Bare suite names will be removed in a future release" "verbatim deprecation phrase present"
 
