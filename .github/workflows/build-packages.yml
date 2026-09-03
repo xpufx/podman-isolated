@@ -710,32 +710,3 @@ jobs:
           git commit -m "deploy: update multi-distro repository (${{ steps.track.outputs.track }})"
           git remote add origin git@github.com:${{ github.repository_owner }}/podman-isolated-pkgs.git
           git push -f origin main:main
-
-      - name: Create or update GitHub Release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          cd repo-output/releases
-          tarballs=(*.tar.gz)
-          if [[ -e "${tarballs[0]}" ]]; then
-            echo ">>> Creating GitHub Release for standalone tarballs..."
-            # Extract version from first tarball name: podman-isolated-<version>-linux-...
-            # e.g. podman-isolated-6.1.0-linux-amd64.tar.gz -> v6.1.0
-            ver=$(ls *.tar.gz | head -n 1 | sed -E 's/podman-isolated-([0-9.]+)-linux.*/\1/')
-            tag="v${ver}"
-            
-            # Combine sha256 sums
-            cat *.sha256 > SHA256SUMS 2>/dev/null || true
-            
-            assets=(*.tar.gz)
-            [[ -f SHA256SUMS ]] && assets+=(SHA256SUMS)
-            
-            # Use gh release create (or upload if tag exists)
-            if gh release view "${tag}" >/dev/null 2>&1; then
-              gh release upload "${tag}" "${assets[@]}" --clobber
-            else
-              gh release create "${tag}" "${assets[@]}" \
-                --title "Podman Isolated ${tag}" \
-                --notes "Standalone binary releases for isolated upstream Podman."
-            fi
-          fi
