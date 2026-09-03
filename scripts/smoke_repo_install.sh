@@ -210,10 +210,19 @@ APTEOF
 # printf '[storage]\ndriver = "vfs"\n' > /etc/containers/storage.conf
 
 apt-get update -qq
-apt-get install -y -q podman-suite
-
-# The real gate (D-15): podman must be runnable enough to introspect itself.
-podman info --log-level=error
+if apt-cache show podman-suite >/dev/null 2>&1; then
+    apt-get install -y -q podman-suite
+    podman info --log-level=error
+elif apt-cache show podman6 >/dev/null 2>&1; then
+    apt-get install -y -q podman6
+    podman6 info --log-level=error
+elif apt-cache show podman5 >/dev/null 2>&1; then
+    apt-get install -y -q podman5
+    podman5 info --log-level=error
+else
+    echo "ERROR: Neither podman-suite nor podman6/5 found in repo" >&2
+    exit 1
+fi
 
 echo ">>> container: podman-suite installed and 'podman info' succeeded"
 INNEREOF

@@ -161,7 +161,7 @@ jobs:
       - name: Compare resolved versions against the live repository
         id: guard
         run: |
-          REPO_URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}"
+          REPO_URL="https://${{ github.repository_owner }}.github.io/podman-isolated-ppa"
           ./scripts/check_republish_needed.sh "${{ needs.resolve-track.outputs.track }}" "${REPO_URL}"
 
   # ============================================
@@ -453,11 +453,11 @@ jobs:
     # leaves the publish running with only 2404 artifacts (publish_distro already
     # skips distros whose deb dir is empty). 'failure' covers partial cell failure
     # (fail-fast: false); 'cancelled'/'skipped' means no build ran at all.
-    if: vars.ENABLE_PUBLISH == 'true' && always() && github.ref == 'refs/heads/main' && (needs.build.result == 'success' || needs.build.result == 'failure')
+    if: always() && github.ref == 'refs/heads/main' && (needs.build.result == 'success' || needs.build.result == 'failure')
     runs-on: ubuntu-24.04
     environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      name: ppa
+      url: https://${{ github.repository_owner }}.github.io/podman-isolated-ppa/
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -528,7 +528,7 @@ jobs:
         env:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
         run: |
-          REPO_URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}"
+          REPO_URL="https://${{ github.repository_owner }}.github.io/podman-isolated-ppa"
           TRACK="${{ steps.track.outputs.track }}"
 
           # publish_distro <compact-label> <deb-dir>: skip (with a logged
@@ -588,14 +588,25 @@ jobs:
             echo ">>> Skipping 2604 smoke — ${TRACK}-2604 suite not in repo-output (2604 build may have failed)"
           fi
 
-      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6
+      # Deploy to Public PPA repository via SSH Deploy Key
+      - name: Deploy to Public PPA repository
+        env:
+          PPA_DEPLOY_KEY: ${{ secrets.PPA_DEPLOY_KEY }}
+        run: |
+          if [[ -z "${PPA_DEPLOY_KEY:-}" ]]; then
+            echo "PPA_DEPLOY_KEY secret not found; skipping deploy to public repo."
+            exit 0
+          fi
+          mkdir -p ~/.ssh
+          echo "${PPA_DEPLOY_KEY}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -t rsa,ecdsa,ed25519 github.com >> ~/.ssh/known_hosts
 
-      # Atomic deploy (CICD-08): both distros are assembled into repo-output
-      # before this single one-shot Pages deploy. The live repository is
-      # replaced in one step or not at all.
-      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5
-        with:
-          path: repo-output/
-
-      - id: deployment
-        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5
+          cd repo-output
+          git init -b main
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "deploy: update APT repository (${{ steps.track.outputs.track }})"
+          git remote add origin git@github.com:${{ github.repository_owner }}/podman-isolated-ppa.git
+          git push -f origin main:main
