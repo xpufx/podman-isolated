@@ -695,7 +695,7 @@ th { background: #f4f4f4; }
 </head>
 <body>
 <h1>Podman Isolated for Ubuntu — APT Repository</h1>
-<p>Pre-built standalone <code>.deb</code> packages for isolated upstream Podman on Ubuntu (amd64 &amp; arm64). Packages install into <code>/opt/podman/releases/&lt;version&gt;/</code> with companion symlinks in <code>/usr/local/bin/</code>, allowing seamless cohabitation with Ubuntu system packages.</p>
+<p>Pre-built standalone <code>.deb</code> packages for isolated upstream Podman on Ubuntu (amd64 &amp; arm64). Packages install into <code>/opt/podman/releases/&lt;version&gt;/</code> with companion symlinks in <code>/usr/bin/</code>, allowing seamless cohabitation with Ubuntu system packages.</p>
 
 <h2>Choose a Track</h2>
 <div class="tracks">
@@ -795,7 +795,7 @@ track is distro-qualified only — always use <code>v5-2404</code> / <code>v5-26
 <pre><code>sudo apt-get update
 sudo apt-get install podman6</code></pre>
 <p><em>(For the v5 track, run <code>sudo apt-get install podman5</code>)</em></p>
-<p>The package installs the complete standalone Podman stack into <code>/opt/podman/releases/&lt;version&gt;/</code> and provides <code>podman6</code> (or <code>podman5</code>) in <code>/usr/local/bin/</code>.</p>
+<p>The package installs the complete standalone Podman stack into <code>/opt/podman/releases/&lt;version&gt;/</code> and provides <code>podman6</code> (or <code>podman5</code>) in <code>/usr/bin/</code>.</p>
 
 <h2>Package Versions</h2>
 HTMLEOF

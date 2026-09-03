@@ -34,5 +34,5 @@ contents:
     dst: "${INSTALL_PREFIX}/lib/"
     type: tree
   - src: "${INSTALL_PREFIX}/bin/podman-wrapper"
-    dst: /usr/local/bin/${PACKAGE_NAME}
+    dst: /usr/bin/${PACKAGE_NAME}
     type: symlink
