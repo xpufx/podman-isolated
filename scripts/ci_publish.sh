@@ -693,8 +693,8 @@ th { background: #f4f4f4; }
 </style>
 </head>
 <body>
-<h1>Podman for Ubuntu — APT Repository</h1>
-<p>Pre-built <code>.deb</code> packages for Podman and its dependencies on Debian (amd64 &amp; arm64).</p>
+<h1>Podman Isolated for Ubuntu — APT Repository</h1>
+<p>Pre-built standalone <code>.deb</code> packages for isolated upstream Podman on Ubuntu (amd64 &amp; arm64). Packages install into <code>/opt/podman/releases/&lt;version&gt;/</code> with companion symlinks in <code>/usr/local/bin/</code>, allowing seamless cohabitation with Ubuntu system packages.</p>
 
 <h2>Choose a Track</h2>
 <div class="tracks">
@@ -785,13 +785,13 @@ EOF</code></pre>
 <p><em>Note:</em> The bare suite names <code>stable</code> and <code>nightly</code>
 are <strong>deprecated</strong> and will be removed in a future release (the <code>v5</code>
 track is distro-qualified only — always use <code>v5-2404</code> / <code>v5-2604</code>).
-<a href="https://github.com/slazarov/podman-ubuntu/blob/main/docs/apt-repository.md#migrating-from-bare-suite-names">see the migration guide &rarr;</a></p>
+<span id="migrating-from-bare-suite-names">(Distro-qualified suite names like <code>stable-2404</code> and <code>stable-2604</code> are recommended).</span></p>
 
 <p>3. Install:</p>
 <pre><code>sudo apt-get update
-sudo apt-get install podman-suite</code></pre>
-<p><code>podman-suite</code> is a meta-package that installs Podman and all its dependencies
-(crun, conmon, netavark, aardvark-dns, pasta, buildah, skopeo, and more).</p>
+sudo apt-get install podman6</code></pre>
+<p><em>(For the v5 track, run <code>sudo apt-get install podman5</code>)</em></p>
+<p>The package installs the complete standalone Podman stack into <code>/opt/podman/releases/&lt;version&gt;/</code> and provides <code>podman6</code> (or <code>podman5</code>) and <code>podman-upstream</code> in <code>/usr/local/bin/</code>.</p>
 
 <h2>Package Versions</h2>
 HTMLEOF
