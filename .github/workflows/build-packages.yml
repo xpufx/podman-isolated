@@ -321,8 +321,10 @@ jobs:
           # label to the dotted VERSION_ID detect_distro_version_id validates
           # against ^[0-9]+\.[0-9]+$. Anything outside the allowlist hard-fails.
           case "${{ matrix.distro }}" in
-            2404) DISTRO_DOTTED=24.04 ;;
-            2604) DISTRO_DOTTED=26.04 ;;
+            2404)     DISTRO_DOTTED=24.04 ;;
+            2604)     DISTRO_DOTTED=26.04 ;;
+            bookworm) DISTRO_DOTTED=bookworm ;;
+            trixie)   DISTRO_DOTTED=trixie ;;
             *) echo "ERROR: unknown matrix.distro '${{ matrix.distro }}'" >&2; exit 1 ;;
           esac
           DESTDIR="${{ runner.temp }}/podman-staging"
@@ -412,8 +414,10 @@ jobs:
           # composes the correct per-distro VERSION_SUFFIX and the .deb filenames
           # carry ~ubuntu${DISTRO_DOTTED}.podman1 for this cell.
           case "${{ matrix.distro }}" in
-            2404) DISTRO_DOTTED=24.04 ;;
-            2604) DISTRO_DOTTED=26.04 ;;
+            2404)     DISTRO_DOTTED=24.04 ;;
+            2604)     DISTRO_DOTTED=26.04 ;;
+            bookworm) DISTRO_DOTTED=bookworm ;;
+            trixie)   DISTRO_DOTTED=trixie ;;
             *) echo "ERROR: unknown matrix.distro '${{ matrix.distro }}'" >&2; exit 1 ;;
           esac
           DISTRO="$DISTRO_DOTTED"
