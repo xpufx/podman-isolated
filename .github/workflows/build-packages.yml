@@ -606,61 +606,62 @@ jobs:
           # Organize into multi-distro layout (/apt/, /arch/, /rpm/, /releases/)
           mkdir -p apt arch rpm releases
           mv dists pool apt/
-          # Provide backward-compatibility symlinks for root-level APT requests
-          ln -s apt/dists dists
-          ln -s apt/pool pool
 
           cat > arch/README.md << 'EOF'
-# Arch Linux Packages
+          # Arch Linux Packages
 
-This directory hosts the pacman repository for Arch Linux (`x86_64` and `aarch64`).
+          This directory hosts the pacman repository for Arch Linux (`x86_64` and `aarch64`).
 
-### Pacman Repository Configuration (`/etc/pacman.conf`):
-```ini
-[podman-isolated]
-SigLevel = Required DatabaseOptional
-Server = https://${{ github.repository_owner }}.github.io/podman-isolated-pkgs/arch/$arch
-```
-EOF
+          ### Pacman Repository Configuration (`/etc/pacman.conf`):
+          ```ini
+          [podman-isolated]
+          SigLevel = Required DatabaseOptional
+          Server = https://${{ github.repository_owner }}.github.io/podman-isolated-pkgs/arch/$arch
+          ```
+          EOF
+          sed -i 's/^          //' arch/README.md
 
           cat > rpm/README.md << 'EOF'
-# RPM Packages (Fedora / RHEL / Rocky / AlmaLinux)
+          # RPM Packages (Fedora / RHEL / Rocky / AlmaLinux)
 
-This directory hosts RPM packages and repomd metadata.
+          This directory hosts RPM packages and repomd metadata.
 
-### DNF/YUM Repository Configuration (`/etc/yum.repos.d/podman-isolated.repo`):
-```ini
-[podman-isolated]
-name=Podman Isolated
-baseurl=https://${{ github.repository_owner }}.github.io/podman-isolated-pkgs/rpm/fedora/$releasever/$basearch/
-enabled=1
-gpgcheck=1
-gpgkey=https://${{ github.repository_owner }}.github.io/podman-isolated-pkgs/podman-isolated.gpg
-```
-EOF
+          ### DNF/YUM Repository Configuration (`/etc/yum.repos.d/podman-isolated.repo`):
+          ```ini
+          [podman-isolated]
+          name=Podman Isolated
+          baseurl=https://${{ github.repository_owner }}.github.io/podman-isolated-pkgs/rpm/fedora/$releasever/$basearch/
+          enabled=1
+          gpgcheck=1
+          gpgkey=https://${{ github.repository_owner }}.github.io/podman-isolated-pkgs/podman-isolated.gpg
+          ```
+          EOF
+          sed -i 's/^          //' rpm/README.md
 
           cat > releases/README.md << 'EOF'
-# Generic Linux Standalone Releases
+          # Generic Linux Standalone Releases
 
-Self-contained binary tarballs of isolated Podman releases.
+          Self-contained binary tarballs of isolated Podman releases.
 
-Packages extract into `/opt/podman/releases/<version>/` with companion symlinks in `/usr/local/bin/`.
-EOF
+          Packages extract into `/opt/podman/releases/<version>/` with companion symlinks in `/usr/local/bin/`.
+          EOF
+          sed -i 's/^          //' releases/README.md
 
           cat > apt/README.md << 'EOF'
-# APT Repository (Ubuntu & Debian)
+          # APT Repository (Ubuntu & Debian)
 
-This directory contains the APT repository metadata (`dists/` and `pool/`).
+          This directory contains the APT repository metadata (`dists/` and `pool/`).
 
-### DEB822 Configuration (`/etc/apt/sources.list.d/podman-isolated.sources`):
-```text
-Types: deb
-URIs: https://${{ github.repository_owner }}.github.io/podman-isolated-pkgs/apt
-Suites: stable-2404
-Components: main
-Signed-By: /etc/apt/keyrings/podman-isolated.gpg
-```
-EOF
+          ### DEB822 Configuration (`/etc/apt/sources.list.d/podman-isolated.sources`):
+          ```text
+          Types: deb
+          URIs: https://${{ github.repository_owner }}.github.io/podman-isolated-pkgs/apt
+          Suites: stable-2404
+          Components: main
+          Signed-By: /etc/apt/keyrings/podman-isolated.gpg
+          ```
+          EOF
+          sed -i 's/^          //' apt/README.md
 
           git init -b main
           git config user.name "github-actions[bot]"

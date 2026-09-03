@@ -855,7 +855,6 @@ cat >> "${OUTPUT_DIR}/index.html" << 'HTMLEOF'
 <h2>Resources</h2>
 <ul>
 <li><a href="podman-isolated.gpg">GPG signing key (podman-isolated.gpg)</a></li>
-<li><a href="podman-ubuntu.gpg">Legacy key alias (podman-ubuntu.gpg)</a></li>
 <li><a href="apt/">APT repository root (apt/)</a></li>
 <li><a href="arch/">Arch Linux pacman repository (arch/)</a></li>
 <li><a href="rpm/">RPM repository (rpm/)</a></li>
@@ -921,7 +920,7 @@ done
 if [[ -d "${OUTPUT_DIR}/pool" ]]; then
     echo "  pool/"
 fi
-if [[ -f "${OUTPUT_DIR}/podman-ubuntu.gpg" ]]; then
-    echo "  podman-ubuntu.gpg"
+if [[ -f "${OUTPUT_DIR}/podman-isolated.gpg" ]]; then
+    echo "  podman-isolated.gpg"
 fi
 echo "----------------------------------------"

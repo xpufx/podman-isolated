@@ -202,7 +202,7 @@ checksums *that* file. Two mechanisms enforce it and one verifies it:
 **Signing.** `GPG_PRIVATE_KEY` is imported with ultimate ownertrust; reprepro
 signs each suite; `repo_byhash.sh` re-signs after injecting `Acquire-By-Hash`
 (editing `Release` invalidates reprepro's signature). `packaging/repo/pubkey.gpg`
-is published as `podman-ubuntu.gpg`.
+is published as `podman-isolated.gpg`.
 
 **Republish gating.** stable/v5 runs (cron or manual dispatch) run
 `check_republish_needed.sh`, which compares would-build versions against what's

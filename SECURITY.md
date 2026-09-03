@@ -30,7 +30,7 @@ severity; coordinated disclosure is appreciated.
 ## Package integrity
 
 - All published suites are **GPG-signed**; the public key is distributed as
-  `podman-ubuntu.gpg` and installed to `/etc/apt/keyrings/`.
+  `podman-isolated.gpg` and installed to `/etc/apt/keyrings/`.
 - Indexes use **Acquire-By-Hash** to avoid mismatches during CDN propagation.
 - Report any signature, key, or index-integrity concern through the private
   channel above.
@@ -39,14 +39,14 @@ severity; coordinated disclosure is appreciated.
 
 The repository signing key lives only as the `GPG_PRIVATE_KEY` GitHub Actions
 secret; its public half ships in the repo as `packaging/repo/pubkey.gpg` and is
-published as `podman-ubuntu.gpg` (installed by users into
+published as `podman-isolated.gpg` (installed by users into
 `/etc/apt/keyrings/`).
 
 Because `apt` will reject a suite signed by a key it doesn't already trust,
 rotation is done with a transition window rather than a hard swap:
 
 1. Generate the new keypair; add its public key to `packaging/repo/pubkey.gpg`
-   **alongside** the current one so the published `podman-ubuntu.gpg` carries
+   **alongside** the current one so the published `podman-isolated.gpg` carries
    both.
 2. Publish once with the combined keyring so every user's next `apt update`
    picks up the new public key while the old signature is still trusted.
