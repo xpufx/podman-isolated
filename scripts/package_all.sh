@@ -312,6 +312,13 @@ if [[ "${INSTALL_PREFIX}" != "/usr" ]]; then
     fi
     suite_version="$(extract_version "${podman_tag}" "podman")${VERSION_SUFFIX}"
     series="$(echo "${podman_tag#v}" | cut -d. -f1)"
+    if [[ -z "${series}" || "${series}" == "${podman_tag}" ]]; then
+        rel_base="$(basename "${INSTALL_PREFIX}")"
+        series="$(echo "${rel_base}" | cut -d. -f1)"
+    fi
+    if [[ -z "${suite_version}" || "${suite_version}" == "${VERSION_SUFFIX}" ]]; then
+        suite_version="$(basename "${INSTALL_PREFIX}")${VERSION_SUFFIX}"
+    fi
     pkg_name="podman${series}"
 
     echo "========================================"

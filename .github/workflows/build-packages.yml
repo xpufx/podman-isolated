@@ -415,12 +415,13 @@ jobs:
           export DESTDIR
           if [[ "${{ steps.track.outputs.track }}" == "nightly" ]]; then
             export NIGHTLY_BUILD=true
-            export INSTALL_PREFIX="/opt/podman/releases/nightly"
-          elif [[ -f "versions-${{ steps.track.outputs.track }}.env" ]]; then
-            PODMAN_TAG_RAW="$(grep '^export PODMAN_TAG=' "versions-${{ steps.track.outputs.track }}.env" | cut -d= -f2 | tr -d '"' || true)"
-            if [[ -n "$PODMAN_TAG_RAW" ]]; then
-              INSTALL_PREFIX="/opt/podman/releases/${PODMAN_TAG_RAW#v}"
+          fi
+          if [[ -d "${DESTDIR}/opt/podman/releases" ]]; then
+            REL_DIR="$(find "${DESTDIR}/opt/podman/releases" -mindepth 1 -maxdepth 1 -type d | head -1 || true)"
+            if [[ -n "$REL_DIR" ]]; then
+              INSTALL_PREFIX="/opt/podman/releases/$(basename "$REL_DIR")"
               export INSTALL_PREFIX
+              echo "Detected isolated installation prefix: ${INSTALL_PREFIX}"
             fi
           fi
           ./scripts/package_all.sh
