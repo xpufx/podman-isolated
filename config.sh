@@ -46,29 +46,37 @@ echo "Architecture: ${ARCH} (Go: ${GOARCH}, Protoc: ${PROTOC_ARCH}, Rust: ${RUST
 # fails config load loudly — intended D-03 behavior, identical to a bad ARCH.
 export DISTRO_VERSION_ID="$(detect_distro_version_id)"
 
-# Per-distro suffix form ~ubuntu{VERSION_ID}.podman2 (D-08): sorts below the
-# official Ubuntu package and orders 24.04 < 26.04 via dpkg version semantics.
-export VERSION_SUFFIX="~ubuntu${DISTRO_VERSION_ID}.podman2"
+# Set distro-aware version suffix (~ubuntu{VERSION_ID}.podman2 or ~debian{CODENAME}.podman1)
+case "${DISTRO_VERSION_ID}" in
+    bookworm)
+        export DISTRO_NAME="debian"
+        export VERSION_SUFFIX="~debian12.podman1"
+        ;;
+    trixie)
+        export DISTRO_NAME="debian"
+        export VERSION_SUFFIX="~debian13.podman1"
+        ;;
+    *)
+        export DISTRO_NAME="ubuntu"
+        export VERSION_SUFFIX="~ubuntu${DISTRO_VERSION_ID}.podman2"
+        ;;
+esac
 
-echo "Distro: ubuntu ${DISTRO_VERSION_ID} (version suffix: ${VERSION_SUFFIX})"
+echo "Distro: ${DISTRO_NAME} ${DISTRO_VERSION_ID} (version suffix: ${VERSION_SUFFIX})"
 
 # ============================================
 # Repository Suite Routing
 # ============================================
 
-# reprepro materializes 8 distributions: the 2 bare legacy aliases (stable/nightly —
-# the REPO-07 mechanism that preserves apt's cached Suite value for pre-v1.3
-# subscribers) plus 6 versioned <track>-<distro> suites. The `v5` track (Podman 5.x
-# maintenance, formerly `edge`) is NEW and has no legacy subscribers, so it is
-# distro-qualified ONLY (v5-2404 / v5-2604) with NO bare `v5` alias.
-# Arrays are NOT exported (bash cannot export arrays cleanly); child scripts
-# source config.sh, so plain declaration suffices — matches the source-not-export
-# pattern documented in functions.sh.
+# reprepro materializes 14 distributions: the 2 bare legacy aliases (stable/nightly)
+# plus 12 versioned <track>-<distro> suites (2404, 2604, bookworm, trixie).
 VALID_TRACKS=(stable v5 nightly)
-VALID_DISTROS=(2404 2604)
+VALID_DISTROS=(2404 2604 bookworm trixie)
 ALL_SUITES=(stable nightly \
             stable-2404 nightly-2404 v5-2404 \
-            stable-2604 nightly-2604 v5-2604)
+            stable-2604 nightly-2604 v5-2604 \
+            stable-bookworm nightly-bookworm v5-bookworm \
+            stable-trixie nightly-trixie v5-trixie)
 
 # is_valid_suite <suite> — returns 0 if <suite> is one of the 8 known
 # distributions, else prints a clear error to stderr and returns 1.

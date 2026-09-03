@@ -71,11 +71,11 @@ sudo wget -qO /etc/apt/keyrings/podman-isolated.gpg \
 
 Each track is published per Ubuntu version with a distro-qualified suite name. Swap the `Suites:` line in your `.sources` file to switch tracks:
 
-| Track | Ubuntu 24.04 suite | Ubuntu 26.04 suite | Description |
-|-------|--------------------|--------------------|-------------|
-| stable | `stable-2404` | `stable-2604` | Podman 6.x, auto-updated within the major (soak window) -- recommended for production |
-| v5 | `v5-2404` | `v5-2604` | Podman 5.x maintenance line, auto-updated within the major (soak window) |
-| nightly | `nightly-2404` | `nightly-2604` | Upstream HEAD, built daily -- newest features, least tested |
+| Track | Ubuntu 24.04 | Ubuntu 26.04 | Debian 12 (bookworm) | Debian 13 (trixie) | Description |
+|-------|--------------|--------------|----------------------|--------------------|-------------|
+| stable | `stable-2404` | `stable-2604` | `stable-bookworm` | `stable-trixie` | Podman 6.x, auto-updated within the major (soak window) -- recommended for production |
+| v5 | `v5-2404` | `v5-2604` | `v5-bookworm` | `v5-trixie` | Podman 5.x maintenance line, auto-updated within the major (soak window) |
+| nightly | `nightly-2404` | `nightly-2604` | `nightly-bookworm` | `nightly-trixie` | Upstream HEAD, built daily -- newest features, least tested |
 
 Use **stable** for production on Podman 6.x; use **v5** to stay on the Podman 5.x line; use **nightly** for the bleeding edge. The stable and v5 tracks pick up new upstream releases automatically once a release has been public for a short soak period.
 

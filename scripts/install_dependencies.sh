@@ -73,8 +73,9 @@ apt-get install -y libfuse3-dev
 # completions when the bash-completion pkg-config is present (host runners
 # preinstall it; bare containers do not), and packaging/nfpm/toolbox.yaml
 # globs usr/share/bash-completion/completions/toolbox*.
-apt-get install -y libsubid-dev meson codespell cmake bash-completion
-apt-get install -y systemd-dev
+apt-get install -y libsubid-dev meson cmake bash-completion
+apt-get install -y codespell || true
+apt-get install -y systemd-dev || apt-get install -y libsystemd-dev
 
 # Dependencies to install Protoc
 apt-get install -y unzip

@@ -56,6 +56,8 @@ echo ""
 assert_contains "$SRC" "setDistro"              "setDistro() function defined"
 assert_contains "$SRC" 'data-distro="2404"'     "data-distro 2404 snippet present"
 assert_contains "$SRC" 'data-distro="2604"'     "data-distro 2604 snippet present"
+assert_contains "$SRC" 'data-distro="bookworm"' "data-distro bookworm snippet present"
+assert_contains "$SRC" 'data-distro="trixie"'   "data-distro trixie snippet present"
 assert_contains "$SRC" "distro-btn"             ".distro-btn CSS/markup present"
 
 # ----- Per-distro DEB822 suite names (MIGR-02 / D-02) -----

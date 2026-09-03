@@ -730,9 +730,9 @@ th { background: #f4f4f4; }
   <strong>Distribution:</strong>
   <button class="distro-btn active" onclick="setDistro('2404')">Ubuntu 24.04</button>
   <button class="distro-btn" onclick="setDistro('2604')">Ubuntu 26.04</button>
-  <button class="distro-btn" onclick="setDistro('debian')">Debian (12/13)</button>
-  <button class="distro-btn" onclick="setDistro('arch')">Arch Linux</button>
-  <button class="distro-btn" onclick="setDistro('tarball')">Generic Linux</button>
+  <button class="distro-btn" onclick="setDistro('bookworm')">Debian 12 (bookworm)</button>
+  <button class="distro-btn" onclick="setDistro('trixie')">Debian 13 (trixie)</button>
+  <button class="distro-btn" onclick="setDistro('tarball')">Generic Tarball</button>
 </div>
 
 <p>1. Import the signing key:</p>
@@ -762,6 +762,20 @@ Suites: stable-2604
 Components: main
 Signed-By: /etc/apt/keyrings/podman-isolated.gpg
 EOF</code></pre>
+    <pre class="snippet" data-distro="bookworm" style="display:none"><code>sudo tee /etc/apt/sources.list.d/podman-isolated.sources &lt;&lt; 'EOF'
+Types: deb
+URIs: https://REPO_URL_PLACEHOLDER/apt
+Suites: stable-bookworm
+Components: main
+Signed-By: /etc/apt/keyrings/podman-isolated.gpg
+EOF</code></pre>
+    <pre class="snippet" data-distro="trixie" style="display:none"><code>sudo tee /etc/apt/sources.list.d/podman-isolated.sources &lt;&lt; 'EOF'
+Types: deb
+URIs: https://REPO_URL_PLACEHOLDER/apt
+Suites: stable-trixie
+Components: main
+Signed-By: /etc/apt/keyrings/podman-isolated.gpg
+EOF</code></pre>
   </div>
   <div id="tab-v5" class="tab-content">
     <pre class="snippet" data-distro="2404"><code>sudo tee /etc/apt/sources.list.d/podman-isolated.sources &lt;&lt; 'EOF'
@@ -778,6 +792,20 @@ Suites: v5-2604
 Components: main
 Signed-By: /etc/apt/keyrings/podman-isolated.gpg
 EOF</code></pre>
+    <pre class="snippet" data-distro="bookworm" style="display:none"><code>sudo tee /etc/apt/sources.list.d/podman-isolated.sources &lt;&lt; 'EOF'
+Types: deb
+URIs: https://REPO_URL_PLACEHOLDER/apt
+Suites: v5-bookworm
+Components: main
+Signed-By: /etc/apt/keyrings/podman-isolated.gpg
+EOF</code></pre>
+    <pre class="snippet" data-distro="trixie" style="display:none"><code>sudo tee /etc/apt/sources.list.d/podman-isolated.sources &lt;&lt; 'EOF'
+Types: deb
+URIs: https://REPO_URL_PLACEHOLDER/apt
+Suites: v5-trixie
+Components: main
+Signed-By: /etc/apt/keyrings/podman-isolated.gpg
+EOF</code></pre>
   </div>
   <div id="tab-nightly" class="tab-content">
     <pre class="snippet" data-distro="2404"><code>sudo tee /etc/apt/sources.list.d/podman-isolated.sources &lt;&lt; 'EOF'
@@ -791,6 +819,20 @@ EOF</code></pre>
 Types: deb
 URIs: https://REPO_URL_PLACEHOLDER/apt
 Suites: nightly-2604
+Components: main
+Signed-By: /etc/apt/keyrings/podman-isolated.gpg
+EOF</code></pre>
+    <pre class="snippet" data-distro="bookworm" style="display:none"><code>sudo tee /etc/apt/sources.list.d/podman-isolated.sources &lt;&lt; 'EOF'
+Types: deb
+URIs: https://REPO_URL_PLACEHOLDER/apt
+Suites: nightly-bookworm
+Components: main
+Signed-By: /etc/apt/keyrings/podman-isolated.gpg
+EOF</code></pre>
+    <pre class="snippet" data-distro="trixie" style="display:none"><code>sudo tee /etc/apt/sources.list.d/podman-isolated.sources &lt;&lt; 'EOF'
+Types: deb
+URIs: https://REPO_URL_PLACEHOLDER/apt
+Suites: nightly-trixie
 Components: main
 Signed-By: /etc/apt/keyrings/podman-isolated.gpg
 EOF</code></pre>

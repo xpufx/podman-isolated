@@ -65,18 +65,20 @@ detect_distro_version_id() {
         return 1
     fi
 
-    # T-19-01: fail closed on anything that is not a dotted NN.NN VERSION_ID.
-    # NOTE (WR-05): Phase 19 is intentionally Ubuntu-only — the version suffix
-    # is hard-coded to ~ubuntu{VERSION_ID}.podman1 (D-08) and the dependency
-    # baselines are Ubuntu's. A bare-integer Debian VERSION_ID ("12") or a
-    # missing VERSION_ID (Debian testing/sid) is therefore rejected on purpose;
-    # broader N-distro support is tracked as future requirement PKG-11. The
-    # message says so explicitly so a Debian operator is not left guessing.
-    if [[ ! "${version_id}" =~ ^[0-9]+\.[0-9]+$ ]]; then
-        echo "ERROR: this pipeline currently supports Ubuntu only (dotted VERSION_ID like 24.04 or 26.04); got VERSION_ID/DISTRO '${version_id}'." >&2
-        echo "  Debian (single-integer VERSION_ID, e.g. '12') and other distros are out of scope for now (PKG-11)." >&2
-        return 1
-    fi
+    # Supports Ubuntu dotted numbers (24.04, 26.04) and Debian version IDs / codenames (12, 13, bookworm, trixie).
+    case "${version_id}" in
+        24.04|26.04) ;;
+        12|bookworm) version_id="bookworm" ;;
+        13|trixie)   version_id="trixie" ;;
+        *)
+            if [[ "${version_id}" =~ ^[0-9]+\.[0-9]+$ ]]; then
+                : # Allow custom dotted Ubuntu-like
+            else
+                echo "ERROR: unsupported distribution VERSION_ID/DISTRO '${version_id}'. Must be Ubuntu (24.04, 26.04) or Debian (bookworm/12, trixie/13)." >&2
+                return 1
+            fi
+            ;;
+    esac
 
     echo "${version_id}"
 }

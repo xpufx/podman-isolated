@@ -225,13 +225,21 @@ jobs:
             arch: arm64
             runner: ubuntu-24.04-arm
             container: ubuntu:26.04
+          - distro: 'bookworm'
+            arch: amd64
+            runner: ubuntu-24.04
+            container: debian:bookworm
+          - distro: 'bookworm'
+            arch: arm64
+            runner: ubuntu-24.04-arm
+            container: debian:bookworm
     steps:
       # 2604 cells start from a bare ubuntu:26.04 container as root, which lacks
       # the tooling the host runner images already ship (sudo + a sudo-capable
       # user, git, curl, ca-certificates). The 2404 cells skip this — their host
       # runner already provides these. setup.sh/install_dependencies.sh install
       # the actual build deps; this only bootstraps enough to reach setup.sh.
-      - name: Bootstrap ubuntu:26.04 container prerequisites
+      - name: Bootstrap container prerequisites
         if: matrix.container != ''
         # shell: sh — bash does not exist in the bare container until this step
         # installs it, so the job-level bash default would fail here.
@@ -248,12 +256,16 @@ jobs:
             'Acquire::http::Timeout "30";' > /etc/apt/apt.conf.d/99-ci-resilient
           SRC=/etc/apt/sources.list.d/ubuntu.sources
           [ -f "$SRC" ] || SRC=/etc/apt/sources.list
-          cp "$SRC" "${SRC}.orig" 2>/dev/null || true
-          sed -i 's|//ports.ubuntu.com|//azure.ports.ubuntu.com|g' "$SRC" 2>/dev/null || true
-          if ! apt-get update; then
-            echo ">>> azure.ports.ubuntu.com unreachable — reverting to ports.ubuntu.com"
-            cp "${SRC}.orig" "$SRC" 2>/dev/null \
-              || sed -i 's|//azure.ports.ubuntu.com|//ports.ubuntu.com|g' "$SRC"
+          if [ -f "$SRC" ]; then
+            cp "$SRC" "${SRC}.orig" 2>/dev/null || true
+            sed -i 's|//ports.ubuntu.com|//azure.ports.ubuntu.com|g' "$SRC" 2>/dev/null || true
+            if ! apt-get update; then
+              echo ">>> azure.ports.ubuntu.com unreachable — reverting to original"
+              cp "${SRC}.orig" "$SRC" 2>/dev/null \
+                || sed -i 's|//azure.ports.ubuntu.com|//ports.ubuntu.com|g' "$SRC"
+              apt-get update
+            fi
+          else
             apt-get update
           fi
           apt-get install -y --no-install-recommends sudo git curl ca-certificates bash
@@ -501,6 +513,14 @@ jobs:
           path: all-debs-2604/
           merge-multiple: true
 
+      - name: Download bookworm artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        continue-on-error: true
+        with:
+          pattern: debs-bookworm-*
+          path: all-debs-bookworm/
+          merge-multiple: true
+
       - name: Install reprepro
         run: |
           sudo apt-get update
@@ -555,6 +575,7 @@ jobs:
           # 2404 first, then 2604 — explicit ordering into one repo-output.
           publish_distro "2404" "all-debs-2404"
           publish_distro "2604" "all-debs-2604"
+          publish_distro "bookworm" "all-debs-bookworm"
 
       # Integrity gate (explicit, on the fully-assembled repo). ci_publish.sh
       # already runs verify_repo_integrity.sh at the end of each pass; re-run it
@@ -611,7 +632,7 @@ jobs:
           mv dists pool apt/
 
           # Copy standalone tarballs to releases/
-          find ../all-debs-2404 ../all-debs-2604 -type f \( -name '*.tar.gz' -o -name '*.sha256' \) -exec cp -f {} releases/ \; 2>/dev/null || true
+          find ../all-debs-2404 ../all-debs-2604 ../all-debs-bookworm -type f \( -name '*.tar.gz' -o -name '*.sha256' \) -exec cp -f {} releases/ \; 2>/dev/null || true
 
           # Copy docs/TEST_REPORT.md to public site
           if [[ -f "../docs/TEST_REPORT.md" ]]; then

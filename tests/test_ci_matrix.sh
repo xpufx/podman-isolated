@@ -126,19 +126,19 @@ print('1' if d['jobs']['build']['strategy']['fail-fast'] is False else '0')
 import sys, yaml
 d = yaml.safe_load(open(sys.argv[1]))
 inc = d['jobs']['build']['strategy']['matrix']['include']
-print('1' if len(inc) == 4 else '0')
+print('1' if len(inc) == 6 else '0')
 ")
-    assert_true "py: matrix include has exactly 4 cells" "${r}"
+    assert_true "py: matrix include has exactly 6 cells" "${r}"
 
     r=$(py "
 import sys, yaml
 d = yaml.safe_load(open(sys.argv[1]))
 inc = d['jobs']['build']['strategy']['matrix']['include']
 cells = {(str(c['distro']), str(c['arch'])) for c in inc}
-want = {('2404','amd64'),('2404','arm64'),('2604','amd64'),('2604','arm64')}
+want = {('2404','amd64'),('2404','arm64'),('2604','amd64'),('2604','arm64'),('bookworm','amd64'),('bookworm','arm64')}
 print('1' if cells == want else '0')
 ")
-    assert_true "py: all four distro×arch cells present" "${r}"
+    assert_true "py: all distro×arch cells present" "${r}"
 
     r=$(py "
 import sys, yaml
@@ -181,7 +181,7 @@ d = yaml.safe_load(open(sys.argv[1]))
 steps = d['jobs']['publish']['steps']
 pats = {s['with']['pattern'] for s in steps
         if isinstance(s.get('with'), dict) and 'pattern' in s['with']}
-print('1' if pats == {'debs-2404-*','debs-2604-*'} else '0')
+print('1' if pats == {'debs-2404-*','debs-2604-*','debs-bookworm-*'} else '0')
 ")
     assert_true "py: publish downloads are per-distro, no bare debs-* merge" "${r}"
 
@@ -261,7 +261,7 @@ run_grep_assertions() {
     # 3. exactly four matrix cells (count '- distro:' lines)
     local cells
     cells=$(printf '%s\n' "${NOCOMMENT}" | grep -Ec '^[[:space:]]*-[[:space:]]*distro:')
-    assert_equals "grep: exactly 4 matrix '- distro:' cells" "4" "${cells}"
+    assert_equals "grep: exactly 6 matrix '- distro:' cells" "6" "${cells}"
 
     # 4. two 2404 + two 2604, two amd64 + two arm64 among cells
     local d2404 d2604 aamd aarm
@@ -271,8 +271,8 @@ run_grep_assertions() {
     aarm=$(printf '%s\n' "${NOCOMMENT}" | grep -Ec '^[[:space:]]*arch:[[:space:]]*arm64')
     assert_equals "grep: two distro 2404 cells" "2" "${d2404}"
     assert_equals "grep: two distro 2604 cells" "2" "${d2604}"
-    assert_equals "grep: two amd64 cells" "2" "${aamd}"
-    assert_equals "grep: two arm64 cells" "2" "${aarm}"
+    assert_equals "grep: three amd64 cells" "3" "${aamd}"
+    assert_equals "grep: three arm64 cells" "3" "${aarm}"
 
     # 5. ubuntu:26.04 container at least twice
     local cont

@@ -132,6 +132,9 @@ assert_succeeds "is_valid_suite v5-2404 ok" is_valid_suite v5-2404
 assert_fails "is_valid_suite bare 'v5' rejected (no bare alias)" is_valid_suite v5
 assert_fails "is_valid_suite legacy 'edge' rejected" is_valid_suite edge
 assert_fails "is_valid_suite bogus rejected" is_valid_suite bogus
+assert_succeeds "is_valid_suite stable-bookworm ok" is_valid_suite stable-bookworm
+assert_succeeds "is_valid_suite v5-bookworm ok" is_valid_suite v5-bookworm
+assert_succeeds "is_valid_suite stable-trixie ok" is_valid_suite stable-trixie
 
 # ============================================
 # Summary

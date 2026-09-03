@@ -81,13 +81,13 @@ fi
 echo "Test 1: exactly 8 Suite lines and 8 Codename lines"
 suite_count="$(grep -c '^Suite:' "${DISTRIBUTIONS}")"
 codename_count="$(grep -c '^Codename:' "${DISTRIBUTIONS}")"
-assert_equals "8 Suite: lines" "8" "${suite_count}"
-assert_equals "8 Codename: lines" "8" "${codename_count}"
+assert_equals "14 Suite: lines" "14" "${suite_count}"
+assert_equals "14 Codename: lines" "14" "${codename_count}"
 
 echo ""
-echo "Test 2: exactly 8 SignWith: yes lines (single-key signing, REPO-06)"
+echo "Test 2: exactly 14 SignWith: yes lines (single-key signing, REPO-06)"
 signwith_count="$(grep -c '^SignWith: yes$' "${DISTRIBUTIONS}")"
-assert_equals "8 SignWith: yes lines" "8" "${signwith_count}"
+assert_equals "14 SignWith: yes lines" "14" "${signwith_count}"
 
 echo ""
 echo "Test 3: Suite == Codename for every stanza (D-03)"
@@ -106,7 +106,7 @@ assert_absent "no bare 'Suite: v5' alias" "^Suite: v5\$"
 
 echo ""
 echo "Test 5: all 6 versioned suites present"
-for v in stable-2404 v5-2404 nightly-2404 stable-2604 v5-2604 nightly-2604; do
+for v in stable-2404 v5-2404 nightly-2404 stable-2604 v5-2604 nightly-2604 stable-bookworm v5-bookworm nightly-bookworm stable-trixie v5-trixie nightly-trixie; do
     assert_contains_line "versioned suite '${v}' present" "Suite: ${v}" "${suite_lines}"
 done
 

@@ -29,12 +29,14 @@ assert_contains() {
 DOC="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/docs/apt-repository.md"
 
 # --- Positive assertions: per-distro suite names ---
-assert_contains "$DOC" "stable-2404"  "24.04 stable suite name present"
-assert_contains "$DOC" "stable-2604"  "26.04 stable suite name present"
-assert_contains "$DOC" "v5-2404"      "24.04 v5 suite name present"
-assert_contains "$DOC" "v5-2604"      "26.04 v5 suite name present"
-assert_contains "$DOC" "nightly-2404" "24.04 nightly suite name present"
-assert_contains "$DOC" "nightly-2604" "26.04 nightly suite name present"
+assert_contains "$DOC" "stable-2404"     "24.04 stable suite name present"
+assert_contains "$DOC" "stable-2604"     "26.04 stable suite name present"
+assert_contains "$DOC" "stable-bookworm" "bookworm stable suite name present"
+assert_contains "$DOC" "v5-2404"         "24.04 v5 suite name present"
+assert_contains "$DOC" "v5-2604"         "26.04 v5 suite name present"
+assert_contains "$DOC" "v5-bookworm"     "bookworm v5 suite name present"
+assert_contains "$DOC" "nightly-2404"    "24.04 nightly suite name present"
+assert_contains "$DOC" "nightly-2604"    "26.04 nightly suite name present"
 
 # --- Positive assertions: keyring path, migration header, deprecation wording ---
 assert_contains "$DOC" "Signed-By: /etc/apt/keyrings/podman-isolated.gpg" "single Signed-By keyring path present"
