@@ -55,7 +55,7 @@ COMPONENT_ROWS=(
     "container-configs|podman-container-configs|CONTAINER_LIBS_TAG|https://github.com/containers/container-libs.git"
 )
 
-# distro label -> dotted VERSION_ID used in the ~ubuntuXX.XX.podman1 suffix
+# distro label -> dotted VERSION_ID used in the ~ubuntuXX.XX.podman2 suffix
 DISTROS=("2404:24.04" "2604:26.04")
 ARCHES=("amd64" "arm64")
 
@@ -184,7 +184,7 @@ main() {
         for distro_entry in "${DISTROS[@]}"; do
             distro="${distro_entry%%:*}"
             dotted="${distro_entry##*:}"
-            target="${base}~ubuntu${dotted}.podman1"
+            target="${base}~ubuntu${dotted}.podman2"
             for arch in "${ARCHES[@]}"; do
                 pkgfile="${tmpdir}/${distro}_${arch}.Packages"
                 published=$(get_pkg_version "${pkgfile}" "${pkg}")

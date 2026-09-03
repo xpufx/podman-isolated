@@ -347,6 +347,49 @@ if [[ "${INSTALL_PREFIX}" != "/usr" ]]; then
     nfpm pkg         --config "${nfpm_config}"         --target "${OUTPUT_DIR}"         --packager deb
     rm -f "${nfpm_config}"
 
+    # Sanitize Debian package: strip root/system directory ownership (e.g. ./opt/, ./usr/)
+    # so dpkg does not claim ownership of system roots or warn on removal.
+    python3 - "${OUTPUT_DIR}" << 'PYCLEAN'
+import sys, os, tempfile, subprocess, tarfile
+
+output_dir = sys.argv[1]
+disallowed = {"./opt", "opt", "./usr", "usr", "./usr/bin", "usr/bin", "./etc", "etc", "./var", "var"}
+
+for fname in os.listdir(output_dir):
+    if not fname.endswith(".deb"):
+        continue
+    deb_path = os.path.join(output_dir, fname)
+    with tempfile.TemporaryDirectory() as td:
+        subprocess.run(["ar", "x", deb_path], cwd=td, check=True)
+        data_tars = [f for f in os.listdir(td) if f.startswith("data.tar")]
+        if not data_tars:
+            continue
+        data_tar_name = data_tars[0]
+        data_tar = os.path.join(td, data_tar_name)
+        comp = data_tar_name.split(".")[-1]
+        mode_r = f"r:{comp}" if comp != "tar" else "r:"
+        mode_w = f"w:{comp}" if comp != "tar" else "w:"
+        new_data_tar = os.path.join(td, "cleaned_" + data_tar_name)
+        
+        modified = False
+        with tarfile.open(data_tar, mode_r) as src, tarfile.open(new_data_tar, mode_w) as dst:
+            for ti in src.getmembers():
+                if ti.isdir() and ti.name.rstrip("/") in disallowed:
+                    print(f"  Stripping system directory ownership from {fname}: {ti.name}")
+                    modified = True
+                    continue
+                if ti.isreg():
+                    dst.addfile(ti, src.extractfile(ti))
+                else:
+                    dst.addfile(ti)
+        if modified:
+            os.replace(new_data_tar, data_tar)
+            ctrl_tars = [f for f in os.listdir(td) if f.startswith("control.tar")]
+            if ctrl_tars:
+                subprocess.run(["ar", "rc", deb_path, "debian-binary", ctrl_tars[0], data_tar_name], cwd=td, check=True)
+                print(f"  Sanitized system directory entries in {fname}")
+PYCLEAN
+
     echo ">>> Generated isolated package in ${OUTPUT_DIR}"
     echo "========================================"
     echo ">>> Packaging Complete"
