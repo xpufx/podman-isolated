@@ -613,6 +613,11 @@ jobs:
           # Copy standalone tarballs to releases/
           find ../all-debs-2404 ../all-debs-2604 -type f \( -name '*.tar.gz' -o -name '*.sha256' \) -exec cp -f {} releases/ \; 2>/dev/null || true
 
+          # Copy docs/TEST_REPORT.md to public site
+          if [[ -f "../docs/TEST_REPORT.md" ]]; then
+            cp -f ../docs/TEST_REPORT.md TEST_REPORT.md
+          fi
+
           cat > arch/README.md << 'EOF'
           # Arch Linux Packages
 

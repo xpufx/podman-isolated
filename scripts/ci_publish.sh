@@ -808,6 +808,8 @@ sudo apt-get install podman6</code></pre>
 <p><em>(For the v5 track, run <code>sudo apt-get install podman5</code>)</em></p>
 <p>The package installs the complete standalone Podman stack into <code>/opt/podman/releases/&lt;version&gt;/</code> and provides <code>podman6</code> (or <code>podman5</code>) in <code>/usr/bin/</code>.</p>
 
+<p><em>Running multiple Podman engines concurrently?</em> See <a href="TEST_REPORT.md#6-potential-issues--edge-cases">Potential Issues &amp; Edge Cases</a> for tips on isolated subnet pools.</p>
+
 <h2>Package Versions</h2>
 HTMLEOF
 
@@ -865,6 +867,7 @@ cat >> "${OUTPUT_DIR}/index.html" << 'HTMLEOF'
 
 <h2>Resources</h2>
 <ul>
+<li><a href="TEST_REPORT.md">Verification &amp; Test Report (TEST_REPORT.md)</a></li>
 <li><a href="podman-isolated.gpg">GPG signing key (podman-isolated.gpg)</a></li>
 <li><a href="apt/">APT repository root (apt/)</a></li>
 <li><a href="arch/">Arch Linux pacman repository (arch/)</a></li>
