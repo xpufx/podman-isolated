@@ -20,7 +20,7 @@ First install the GPG signing key (see [GPG Signing Key](#gpg-signing-key) below
 # Add the repository (DEB822 format)
 sudo tee /etc/apt/sources.list.d/podman-isolated.sources << 'EOF'
 Types: deb
-URIs: https://slazarov.github.io/podman-ubuntu
+URIs: https://xpufx.github.io/podman-isolated-pkgs/apt
 Suites: stable-2404
 Components: main
 Signed-By: /etc/apt/keyrings/podman-isolated.gpg
@@ -41,7 +41,7 @@ First install the GPG signing key (see [GPG Signing Key](#gpg-signing-key) below
 # Add the repository (DEB822 format)
 sudo tee /etc/apt/sources.list.d/podman-isolated.sources << 'EOF'
 Types: deb
-URIs: https://slazarov.github.io/podman-ubuntu
+URIs: https://xpufx.github.io/podman-isolated-pkgs/apt
 Suites: stable-2604
 Components: main
 Signed-By: /etc/apt/keyrings/podman-isolated.gpg
@@ -64,7 +64,7 @@ The signing key is the same for every Ubuntu version and every track -- download
 # Download the GPG signing key
 sudo mkdir -p /etc/apt/keyrings
 sudo wget -qO /etc/apt/keyrings/podman-isolated.gpg \
-  https://slazarov.github.io/podman-ubuntu/podman-isolated.gpg
+  https://xpufx.github.io/podman-isolated-pkgs/podman-isolated.gpg
 ```
 
 ## Track Selection
@@ -136,7 +136,7 @@ For the nightly track, substitute `nightly` for `stable` on both sides of the re
 ```bash
 sudo tee /etc/apt/sources.list.d/podman-isolated.sources << 'EOF'
 Types: deb
-URIs: https://slazarov.github.io/podman-ubuntu
+URIs: https://xpufx.github.io/podman-isolated-pkgs/apt
 Suites: stable-2404
 Components: main
 Signed-By: /etc/apt/keyrings/podman-isolated.gpg
@@ -148,7 +148,7 @@ Ubuntu 26.04:
 ```bash
 sudo tee /etc/apt/sources.list.d/podman-isolated.sources << 'EOF'
 Types: deb
-URIs: https://slazarov.github.io/podman-ubuntu
+URIs: https://xpufx.github.io/podman-isolated-pkgs/apt
 Suites: stable-2604
 Components: main
 Signed-By: /etc/apt/keyrings/podman-isolated.gpg
@@ -171,7 +171,7 @@ Expected output should show "PGP/GPG key public ring" or similar binary key form
 
 ```bash
 sudo wget -qO /etc/apt/keyrings/podman-isolated.gpg \
-  https://slazarov.github.io/podman-ubuntu/podman-isolated.gpg
+  https://xpufx.github.io/podman-isolated-pkgs/podman-isolated.gpg
 ```
 
 ### Signature verification errors on apt update
@@ -194,7 +194,7 @@ cat /etc/apt/sources.list.d/podman-isolated.sources
 
 ### Repository returns 404
 
-The repository URL is `https://slazarov.github.io/podman-ubuntu`. Ensure:
+The repository URL is `https://xpufx.github.io/podman-isolated-pkgs/apt`. Ensure:
 
 - The `URIs` line in your sources file has no trailing slash
 - GitHub Pages is live (check the URL in a browser)

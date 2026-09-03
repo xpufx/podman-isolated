@@ -603,10 +603,69 @@ jobs:
           ssh-keyscan -t rsa,ecdsa,ed25519 github.com >> ~/.ssh/known_hosts
 
           cd repo-output
+          # Organize into multi-distro layout (/apt/, /arch/, /rpm/, /releases/)
+          mkdir -p apt arch rpm releases
+          mv dists pool apt/
+          # Provide backward-compatibility symlinks for root-level APT requests
+          ln -s apt/dists dists
+          ln -s apt/pool pool
+
+          cat > arch/README.md << 'EOF'
+# Arch Linux Packages
+
+This directory hosts the pacman repository for Arch Linux (`x86_64` and `aarch64`).
+
+### Pacman Repository Configuration (`/etc/pacman.conf`):
+```ini
+[podman-isolated]
+SigLevel = Required DatabaseOptional
+Server = https://${{ github.repository_owner }}.github.io/podman-isolated-pkgs/arch/$arch
+```
+EOF
+
+          cat > rpm/README.md << 'EOF'
+# RPM Packages (Fedora / RHEL / Rocky / AlmaLinux)
+
+This directory hosts RPM packages and repomd metadata.
+
+### DNF/YUM Repository Configuration (`/etc/yum.repos.d/podman-isolated.repo`):
+```ini
+[podman-isolated]
+name=Podman Isolated
+baseurl=https://${{ github.repository_owner }}.github.io/podman-isolated-pkgs/rpm/fedora/$releasever/$basearch/
+enabled=1
+gpgcheck=1
+gpgkey=https://${{ github.repository_owner }}.github.io/podman-isolated-pkgs/podman-isolated.gpg
+```
+EOF
+
+          cat > releases/README.md << 'EOF'
+# Generic Linux Standalone Releases
+
+Self-contained binary tarballs of isolated Podman releases.
+
+Packages extract into `/opt/podman/releases/<version>/` with companion symlinks in `/usr/local/bin/`.
+EOF
+
+          cat > apt/README.md << 'EOF'
+# APT Repository (Ubuntu & Debian)
+
+This directory contains the APT repository metadata (`dists/` and `pool/`).
+
+### DEB822 Configuration (`/etc/apt/sources.list.d/podman-isolated.sources`):
+```text
+Types: deb
+URIs: https://${{ github.repository_owner }}.github.io/podman-isolated-pkgs/apt
+Suites: stable-2404
+Components: main
+Signed-By: /etc/apt/keyrings/podman-isolated.gpg
+```
+EOF
+
           git init -b main
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "deploy: update APT repository (${{ steps.track.outputs.track }})"
+          git commit -m "deploy: update multi-distro repository (${{ steps.track.outputs.track }})"
           git remote add origin git@github.com:${{ github.repository_owner }}/podman-isolated-pkgs.git
           git push -f origin main:main
