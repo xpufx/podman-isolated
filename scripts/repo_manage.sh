@@ -185,14 +185,14 @@ echo ""
 
 echo ">>> Publishing GPG public key..."
 
-if [[ -f "${REPO_CONF}/pubkey.gpg" ]]; then
+# Always export the actual public key from the keyring that holds the secret key used for signing
+GPG_KEY_ID=$(gpg --list-secret-keys --with-colons | awk -F: '/^fpr:/{print $10; exit}')
+if [[ -n "${GPG_KEY_ID}" ]]; then
+    gpg --export "${GPG_KEY_ID}" > "${OUTPUT_DIR}/podman-isolated.gpg"
+    echo ">>> Exported signing public key from keyring to podman-isolated.gpg: ${GPG_KEY_ID}"
+elif [[ -f "${REPO_CONF}/pubkey.gpg" ]]; then
     cp "${REPO_CONF}/pubkey.gpg" "${OUTPUT_DIR}/podman-isolated.gpg"
     echo ">>> Copied pubkey.gpg from packaging/repo/ to podman-isolated.gpg"
-else
-    # Export from keyring
-    GPG_KEY_ID=$(gpg --list-secret-keys --with-colons | awk -F: '/^fpr:/{print $10; exit}')
-    gpg --export "${GPG_KEY_ID}" > "${OUTPUT_DIR}/podman-isolated.gpg"
-    echo ">>> Exported public key from keyring to podman-isolated.gpg: ${GPG_KEY_ID}"
 fi
 
 echo ""
