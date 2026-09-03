@@ -851,7 +851,6 @@ cat >> "${OUTPUT_DIR}/index.html" << 'HTMLEOF'
 <h2>Resources</h2>
 <ul>
 <li><a href="podman-ubuntu.gpg">GPG signing key</a></li>
-<li><a href="https://github.com/slazarov/podman-ubuntu">Source repository</a></li>
 </ul>
 
 <script>
