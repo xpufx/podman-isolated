@@ -912,8 +912,6 @@ cat >> "${OUTPUT_DIR}/index.html" << 'HTMLEOF'
 <li><a href="TEST_REPORT.md">Verification &amp; Test Report (TEST_REPORT.md)</a></li>
 <li><a href="podman-isolated.gpg">GPG signing key (podman-isolated.gpg)</a></li>
 <li><a href="apt/">APT repository root (apt/)</a></li>
-<li><a href="arch/">Arch Linux pacman repository (arch/)</a></li>
-<li><a href="rpm/">RPM repository (rpm/)</a></li>
 <li><a href="releases/">Standalone releases (releases/)</a></li>
 </ul>
 

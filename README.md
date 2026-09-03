@@ -9,7 +9,7 @@ Built specifically for Debian/Ubuntu systems where you need modern, upstream Pod
 | | |
 |---|---|
 | **License** | AGPL-3.0 |
-| **Supported Platforms** | Ubuntu 24.04 (Noble Numbat), Ubuntu 26.04 (Resolute Raccoon), Debian |
+| **Supported Platforms** | Ubuntu 24.04 (Noble Numbat), Ubuntu 26.04 (Resolute Raccoon), Debian 12 (Bookworm), Debian 13 (Trixie), Generic Linux (standalone tarball) |
 | **Architectures** | amd64 (x86_64), arm64 (aarch64) |
 | **Default Prefix** | `/opt/podman/releases/<version>` (symlinked to `/opt/podman/current`) |
 

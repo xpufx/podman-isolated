@@ -631,8 +631,8 @@ jobs:
           ssh-keyscan -t rsa,ecdsa,ed25519 github.com >> ~/.ssh/known_hosts
 
           cd repo-output
-          # Organize into multi-distro layout (/apt/, /arch/, /rpm/, /releases/)
-          mkdir -p apt arch rpm releases
+          # Organize into repository layout (/apt/, /releases/)
+          mkdir -p apt releases
           mv dists pool apt/
 
           # Copy standalone tarballs to releases/
@@ -642,37 +642,6 @@ jobs:
           if [[ -f "../docs/TEST_REPORT.md" ]]; then
             cp -f ../docs/TEST_REPORT.md TEST_REPORT.md
           fi
-
-          cat > arch/README.md << 'EOF'
-          # Arch Linux Packages
-
-          This directory hosts the pacman repository for Arch Linux (`x86_64` and `aarch64`).
-
-          ### Pacman Repository Configuration (`/etc/pacman.conf`):
-          ```ini
-          [podman-isolated]
-          SigLevel = Required DatabaseOptional
-          Server = https://${{ github.repository_owner }}.github.io/podman-isolated-pkgs/arch/$arch
-          ```
-          EOF
-          sed -i 's/^          //' arch/README.md
-
-          cat > rpm/README.md << 'EOF'
-          # RPM Packages (Fedora / RHEL / Rocky / AlmaLinux)
-
-          This directory hosts RPM packages and repomd metadata.
-
-          ### DNF/YUM Repository Configuration (`/etc/yum.repos.d/podman-isolated.repo`):
-          ```ini
-          [podman-isolated]
-          name=Podman Isolated
-          baseurl=https://${{ github.repository_owner }}.github.io/podman-isolated-pkgs/rpm/fedora/$releasever/$basearch/
-          enabled=1
-          gpgcheck=1
-          gpgkey=https://${{ github.repository_owner }}.github.io/podman-isolated-pkgs/podman-isolated.gpg
-          ```
-          EOF
-          sed -i 's/^          //' rpm/README.md
 
           cat > releases/README.md << 'EOF'
           # Generic Linux Standalone Releases
