@@ -1,4 +1,4 @@
-name: lint
+name: "Code Quality & Unit Tests"
 
 # Fast quality gate on every push and PR. The heavier reprepro/gpg integration
 # harnesses run in the publish job of build-packages.yml; here we run ShellCheck,
