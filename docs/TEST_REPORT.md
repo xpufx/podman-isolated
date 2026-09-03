@@ -83,3 +83,17 @@ To verify that neither engine relies on the other:
 * **Actively Verified**: Ubuntu 24.04 LTS (live host & clean VM) and Ubuntu 26.04 (CI container environment).
 * **Architectures Verified**: `x86_64` (amd64) on physical hardware and KVM; `aarch64` (arm64) via automated CI workflows.
 * **Planned Coverage**: Native packages for Debian 12/13, Arch Linux (`pacman`), and RPM-based distributions.
+
+---
+
+## 6. Potential Issues & Edge Cases
+
+### Subnet Allocation Overlap
+* **Behavior**: Rootless bridge networks use user-isolated network namespaces. Neither instance can inspect the internal bridges of the other. By default, both engines allocate subnets from Netavark's default pool (`10.89.0.0/16` in `/24` increments). If both engines create networks that happen to draw the same subnet (e.g. both pick `10.89.0.0/24`), traffic within their respective namespaces still works, but inter-container routing by IP between engines or overlapping host port binds could cause confusion.
+* **Tip**: If you run multiple engines simultaneously and want to guarantee zero subnet overlap, assign an offset default subnet pool in `~/.config/podman6/containers/containers.conf`:
+  ```toml
+  [network]
+  default_subnet_pools = [
+    {"base" = "10.90.0.0/16", "size" = 24}
+  ]
+  ```
