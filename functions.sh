@@ -181,9 +181,14 @@ detect_runtime_depends() {
             # otherwise abort with an opaque ERR-trap message before the
             # explicit guard below ever runs.
             if ! dpkg_out="$(dpkg-query -S "${resolved}" 2>&1)"; then
-                echo "ERROR: no owning package for ${lib} -> ${resolved} (linked by ${bin})" >&2
-                echo "  dpkg-query: ${dpkg_out}" >&2
-                return 1
+                # On Debian (e.g. Debian 12 usr-merge transition), the dpkg database
+                # may record the unmerged path (/lib/...) while realpath resolved
+                # to /usr/lib/... (or vice versa). Fall back to querying ${lib}.
+                if ! dpkg_out="$(dpkg-query -S "${lib}" 2>&1)"; then
+                    echo "ERROR: no owning package for ${lib} -> ${resolved} (linked by ${bin})" >&2
+                    echo "  dpkg-query: ${dpkg_out}" >&2
+                    return 1
+                fi
             fi
             # WR-01: take the FIRST real line first, then split on ':' to read
             # the package field. dpkg-query -S can emit diversion records
