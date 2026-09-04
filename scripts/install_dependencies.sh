@@ -75,7 +75,7 @@ apt-get install -y libfuse3-dev
 # globs usr/share/bash-completion/completions/toolbox*.
 apt-get install -y libsubid-dev meson cmake bash-completion
 apt-get install -y codespell || true
-apt-get install -y systemd-dev || apt-get install -y libsystemd-dev
+apt-get install -y systemd-dev || apt-get install -y systemd
 
 # Dependencies to install Protoc
 apt-get install -y unzip

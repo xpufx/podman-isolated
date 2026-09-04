@@ -61,11 +61,11 @@ echo "========================================"
 # ---------------------------------------------------------------------------
 LABEL="${1:-}"
 case "${LABEL}" in
-    2404|2604)
+    2404|2604|bookworm|trixie)
         ;;
     *)
-        echo "ERROR: distro-label must be exactly '2404' or '2604' (got '${LABEL}')." >&2
-        echo "  Usage: smoke_repo_install.sh <2404|2604> [repo-dir]" >&2
+        echo "ERROR: distro-label must be one of '2404', '2604', 'bookworm', 'trixie' (got '${LABEL}')." >&2
+        echo "  Usage: smoke_repo_install.sh <2404|2604|bookworm|trixie> [repo-dir]" >&2
         exit 1
         ;;
 esac
@@ -125,6 +125,20 @@ echo "Container runtime: ${RUNTIME}"
 IMAGE=""
 if [[ "${LABEL}" == "2404" ]]; then
     IMAGE="ubuntu:24.04"
+    echo ">>> Trying to pull image: ${IMAGE}"
+    if ! "${RUNTIME}" pull "${IMAGE}"; then
+        echo "ERROR: could not pull ${IMAGE}." >&2
+        exit 1
+    fi
+elif [[ "${LABEL}" == "bookworm" ]]; then
+    IMAGE="debian:bookworm"
+    echo ">>> Trying to pull image: ${IMAGE}"
+    if ! "${RUNTIME}" pull "${IMAGE}"; then
+        echo "ERROR: could not pull ${IMAGE}." >&2
+        exit 1
+    fi
+elif [[ "${LABEL}" == "trixie" ]]; then
+    IMAGE="debian:trixie"
     echo ">>> Trying to pull image: ${IMAGE}"
     if ! "${RUNTIME}" pull "${IMAGE}"; then
         echo "ERROR: could not pull ${IMAGE}." >&2

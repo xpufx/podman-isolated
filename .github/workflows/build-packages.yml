@@ -615,6 +615,13 @@ jobs:
           else
             echo ">>> Skipping 2604 smoke — ${TRACK}-2604 suite not in repo-output (2604 build may have failed)"
           fi
+          # Only run bookworm smoke if a bookworm suite was actually published
+          if compgen -G "$PWD/repo-output/dists/${TRACK}-bookworm" > /dev/null 2>&1 || \
+             [[ -d "$PWD/repo-output/dists/${TRACK}-bookworm" ]]; then
+            ./scripts/smoke_repo_install.sh bookworm "$PWD/repo-output"
+          else
+            echo ">>> Skipping bookworm smoke — ${TRACK}-bookworm suite not in repo-output (bookworm build may have failed)"
+          fi
 
       # Deploy to Public PPA repository via SSH Deploy Key
       - name: Deploy to Public PPA repository
