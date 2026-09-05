@@ -454,7 +454,7 @@ jobs:
           # The publish job consumes these within the same run; retention only
           # serves post-hoc debugging. Kept short so daily nightly x 4 cells
           # don't accumulate ~30 days of .deb artifacts in Actions storage.
-          retention-days: 7
+          retention-days: 1
 
   # ============================================
   # Publish APT repository to GitHub Pages
