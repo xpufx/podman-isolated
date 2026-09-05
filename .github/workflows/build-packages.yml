@@ -10,7 +10,7 @@ on:
   schedule:
     # One cron per auto-updating track; the firing cron selects the track (see the
     # resolve-track job). Staggered so the "pages" concurrency group serializes them.
-    - cron: '30 4 * * *'  # 04:30 UTC — nightly (upstream HEAD)
+    - cron: '30 4 * * 0'  # 04:30 UTC Sundays — weekly nightly (upstream HEAD)
     - cron: '30 5 * * *'  # 05:30 UTC — stable  (Podman 6.x, series-cap + soak)
     - cron: '30 6 * * *'  # 06:30 UTC — v5      (Podman 5.x maintenance, series-cap + soak)
   workflow_dispatch:
@@ -26,6 +26,11 @@ on:
         default: stable
       force_rebuild:
         description: 'Force a stable/v5 rebuild even when no pinned version changed (bypasses the republish guard). Use to republish after a packaging-only change. Ignored on nightly (already unguarded on dispatch).'
+        required: false
+        type: boolean
+        default: false
+      build_arm:
+        description: 'Include arm64 cells (full 6-cell matrix). Default false builds amd64-only (3 cells) to save arm64 runner minutes.'
         required: false
         type: boolean
         default: false
@@ -51,6 +56,7 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       track: ${{ steps.pick.outputs.track }}
+      matrix: ${{ steps.pick-matrix.outputs.matrix }}
     steps:
       - name: Pick track
         id: pick
@@ -61,7 +67,7 @@ jobs:
             TRACK="stable"
           else
             case "${{ github.event.schedule }}" in
-              '30 4 * * *') TRACK="nightly" ;;
+              '30 4 * * 0') TRACK="nightly" ;;
               '30 5 * * *') TRACK="stable" ;;
               '30 6 * * *') TRACK="v5" ;;
               # Fail loud rather than silently building+publishing the wrong track
@@ -71,15 +77,40 @@ jobs:
           fi
           echo "track=${TRACK}" >> "$GITHUB_OUTPUT"
           echo "Resolved track: ${TRACK}"
+      # Dynamic build matrix (cost control): routine runs default to the
+      # amd64-only 3-cell matrix (2404-amd64, 2604-amd64, bookworm-amd64) to
+      # save arm64 runner minutes and artifact storage. The full 6-cell matrix
+      # (amd64 + arm64) is used when inputs.build_arm == true on manual
+      # dispatch, or for scheduled stable/v5 runs — those only proceed past
+      # the check-republish guard (skip == false) when a new upstream release
+      # needs publishing, so they must fan out to every distro×arch cell.
+      - name: Pick matrix
+        id: pick-matrix
+        run: |
+          AMD64_ONLY='{"include":[{"distro":"2404","arch":"amd64","runner":"ubuntu-24.04","container":""},{"distro":"2604","arch":"amd64","runner":"ubuntu-24.04","container":"ubuntu:26.04"},{"distro":"bookworm","arch":"amd64","runner":"ubuntu-24.04","container":"debian:bookworm"}]}'
+          FULL='{"include":[{"distro":"2404","arch":"amd64","runner":"ubuntu-24.04","container":""},{"distro":"2404","arch":"arm64","runner":"ubuntu-24.04-arm","container":""},{"distro":"2604","arch":"amd64","runner":"ubuntu-24.04","container":"ubuntu:26.04"},{"distro":"2604","arch":"arm64","runner":"ubuntu-24.04-arm","container":"ubuntu:26.04"},{"distro":"bookworm","arch":"amd64","runner":"ubuntu-24.04","container":"debian:bookworm"},{"distro":"bookworm","arch":"arm64","runner":"ubuntu-24.04-arm","container":"debian:bookworm"}]}'
+          TRACK="${{ steps.pick.outputs.track }}"
+          BUILD_ARM="${{ inputs.build_arm }}"
+          if [[ "${BUILD_ARM}" == "true" ]]; then
+            MATRIX="${FULL}"
+          elif [[ "${{ github.event_name }}" == "schedule" && ("${TRACK}" == "stable" || "${TRACK}" == "v5") ]]; then
+            # check-republish guard: stable/v5 schedules that reach the build
+            # (skip == false) are publishing a new upstream release.
+            MATRIX="${FULL}"
+          else
+            MATRIX="${AMD64_ONLY}"
+          fi
+          echo "matrix=${MATRIX}" >> "$GITHUB_OUTPUT"
+          echo "Resolved matrix: ${MATRIX}"
 
   # ============================================
   # Check if upstream components changed (nightly cron only)
   # ============================================
   # HEAD-SHA guard for the NIGHTLY cron only (nightly builds from upstream HEAD).
-  # Gated to the 04:30 cron specifically so the stable/v5 crons — which are guarded
+  # Gated to the Sunday 04:30 cron specifically so the stable/v5 crons — which are guarded
   # by check-republish instead — never trip this nightly-semantics short-circuit.
   check-changes:
-    if: github.event_name == 'schedule' && github.event.schedule == '30 4 * * *'
+    if: github.event_name == 'schedule' && github.event.schedule == '30 4 * * 0'
     runs-on: ubuntu-24.04
     outputs:
       skip: ${{ steps.detect.outputs.skip }}
@@ -165,14 +196,19 @@ jobs:
           ./scripts/check_republish_needed.sh "${{ needs.resolve-track.outputs.track }}" "${REPO_URL}"
 
   # ============================================
-  # Build all distro x arch cells in one matrix
+  # Build all distro x arch cells in one dynamic matrix
   # ============================================
-  # CICD-05: one strategy.matrix fans out to all four cells in a single run.
+  # CICD-05: one strategy.matrix fans out to the cells resolved by the
+  # resolve-track job (dynamic matrix). Routine runs resolve to the amd64-only
+  # 3-cell matrix; manual dispatches with inputs.build_arm == true and
+  # scheduled stable/v5 runs that pass the check-republish guard (a new
+  # upstream release needs publishing) resolve to the full 6-cell matrix.
   # fail-fast: false — a 26.04 cell failure must NOT abort the 24.04 cells.
   # CICD-06: the runner label is a matrix FIELD (matrix.runner), not hardcoded
   #   in any step. When GA ubuntu-26.04 / ubuntu-26.04-arm runners land, switch
   #   a 26.04 cell off its container by editing that cell's `runner` (and
-  #   blanking its `container`) — a one-line change per cell, no step edits.
+  #   blanking its `container`) in resolve-track's FULL/AMD64_ONLY JSON — a
+  #   one-line change per cell, no step edits.
   # CICD-07: Go cache keys and artifact names carry a distro dimension so a
   #   26.04 build can never reuse a 24.04 cache or land in a 24.04 artifact.
   build:
@@ -204,35 +240,7 @@ jobs:
         shell: bash
     strategy:
       fail-fast: false
-      matrix:
-        # One include entry per cell pairs distro<->arch<->runner<->container
-        # explicitly (no cartesian product + exclusions). To move a 26.04 cell
-        # onto a future GA runner, change its `runner` and set `container: ''`.
-        include:
-          - distro: '2404'
-            arch: amd64
-            runner: ubuntu-24.04
-            container: ''
-          - distro: '2404'
-            arch: arm64
-            runner: ubuntu-24.04-arm
-            container: ''
-          - distro: '2604'
-            arch: amd64
-            runner: ubuntu-24.04
-            container: ubuntu:26.04
-          - distro: '2604'
-            arch: arm64
-            runner: ubuntu-24.04-arm
-            container: ubuntu:26.04
-          - distro: 'bookworm'
-            arch: amd64
-            runner: ubuntu-24.04
-            container: debian:bookworm
-          - distro: 'bookworm'
-            arch: arm64
-            runner: ubuntu-24.04-arm
-            container: debian:bookworm
+      matrix: ${{ fromJson(needs.resolve-track.outputs.matrix) }}
     steps:
       # 2604 cells start from a bare ubuntu:26.04 container as root, which lacks
       # the tooling the host runner images already ship (sudo + a sudo-capable

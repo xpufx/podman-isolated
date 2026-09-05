@@ -1,15 +1,24 @@
 #!/bin/bash
 
 # Test the Phase-21 CI build-matrix + publish-gating contract by parsing
-# .github/workflows/build-packages.yml. Asserts:
+# .github/workflows/build-packages.yml. Asserts the DYNAMIC matrix contract:
 #   - a single matrixed `build` job (no build-amd64/build-arm64)
 #   - fail-fast: false under the build strategy
-#   - exactly four distro×arch matrix cells (24.04/26.04 × amd64/arm64)
-#   - 26.04 cells run inside ubuntu:26.04 containers; 24.04 cells do not
+#   - dynamic matrix: build uses fromJson(needs.resolve-track.outputs.matrix),
+#     no static `include:` cell list under build
+#   - resolve-track outputs both `track` and `matrix`
+#   - resolve-track defines an amd64-only 3-cell JSON (2404/2604/bookworm x
+#     amd64) and a full 6-cell JSON (amd64 + arm64), selected by
+#     inputs.build_arm == true (manual dispatch) or a scheduled stable/v5 run
+#     that passes the check-republish guard (new upstream release)
+#   - 2604 cells run inside ubuntu:26.04 containers; 2404 cells do not
+#     (verified inside the resolve-track JSON fragments)
 #   - distro-dimensioned Go cache key + artifact name
 #   - publish job gated on the build job's aggregate result (atomic publish)
 #   - no cross-distro download merge in the publish job
 #   - ci_publish.sh invoked for both 2404 and 2604
+#   - weekly Sunday nightly cron (30 4 * * 0), stable/v5 daily crons retained
+#   - artifact retention-days: 1
 #
 # Runs on the macOS dev host with NO CI: prefers python3 + PyYAML for precise
 # structural checks, falls back to grep/awk against the raw YAML text when
@@ -76,7 +85,7 @@ assert_true() {
 
 echo ""
 echo "========================================"
-echo "Test: CI build-matrix + publish-gating contract"
+echo "Test: CI build-matrix + publish-gating contract (dynamic)"
 echo "========================================"
 echo ""
 
@@ -89,6 +98,7 @@ fi
 # Strip comment-only lines once for every grep-path assertion so workflow
 # comments can never self-satisfy a gate (grep-gate hygiene).
 NOCOMMENT="$(grep -v '^[[:space:]]*#' "${WORKFLOW}")"
+RAW="$(cat "${WORKFLOW}")"
 
 HAVE_PYYAML=0
 if python3 -c 'import yaml' 2>/dev/null; then
@@ -125,32 +135,55 @@ print('1' if d['jobs']['build']['strategy']['fail-fast'] is False else '0')
     r=$(py "
 import sys, yaml
 d = yaml.safe_load(open(sys.argv[1]))
-inc = d['jobs']['build']['strategy']['matrix']['include']
-print('1' if len(inc) == 6 else '0')
+m = d['jobs']['build']['strategy']['matrix']
+print('1' if (isinstance(m, str) and 'fromJson' in m and 'needs.resolve-track.outputs.matrix' in m) else '0')
 ")
-    assert_true "py: matrix include has exactly 6 cells" "${r}"
+    assert_true "py: build matrix is dynamic fromJson(needs.resolve-track.outputs.matrix)" "${r}"
 
     r=$(py "
 import sys, yaml
 d = yaml.safe_load(open(sys.argv[1]))
-inc = d['jobs']['build']['strategy']['matrix']['include']
-cells = {(str(c['distro']), str(c['arch'])) for c in inc}
-want = {('2404','amd64'),('2404','arm64'),('2604','amd64'),('2604','arm64'),('bookworm','amd64'),('bookworm','arm64')}
-print('1' if cells == want else '0')
+m = d['jobs']['build']['strategy']['matrix']
+print('1' if not (isinstance(m, dict) and 'include' in m) else '0')
 ")
-    assert_true "py: all distro×arch cells present" "${r}"
+    assert_true "py: build has no static matrix include (dynamic only)" "${r}"
 
     r=$(py "
 import sys, yaml
 d = yaml.safe_load(open(sys.argv[1]))
-inc = d['jobs']['build']['strategy']['matrix']['include']
-c2604 = [c for c in inc if str(c['distro']) == '2604']
-c2404 = [c for c in inc if str(c['distro']) == '2404']
-ok = (all(c.get('container') == 'ubuntu:26.04' for c in c2604)
-      and all(not c.get('container') for c in c2404))
+outs = d['jobs']['resolve-track'].get('outputs', {})
+print('1' if ('track' in outs and 'matrix' in outs) else '0')
+")
+    assert_true "py: resolve-track outputs both 'track' and 'matrix'" "${r}"
+
+    r=$(py "
+import sys, yaml
+raw = open(sys.argv[1]).read()
+has_arm_toggle = 'inputs.build_arm' in raw
+has_amd64_only = 'AMD64_ONLY' in raw or 'amd64-only' in raw.lower()
+has_full = 'FULL' in raw and 'arm64' in raw
+# amd64-only JSON must carry the three distro cells; full JSON must carry arm64 cells
+has_3 = all(s in raw for s in ['2404', '2604', 'bookworm'])
+print('1' if (has_arm_toggle and has_amd64_only and has_full and has_3) else '0')
+")
+    assert_true "py: resolve-track defines amd64-only (3-cell) and full (6-cell) matrices gated on inputs.build_arm" "${r}"
+
+    r=$(py "
+import sys, yaml
+raw = open(sys.argv[1]).read()
+print('1' if ('check-republish' in raw and 'skip' in raw) else '0')
+")
+    assert_true "py: republish guard (check-republish skip) referenced for full-matrix publishing" "${r}"
+
+    r=$(py "
+import sys, yaml
+raw = open(sys.argv[1]).read()
+# 2604 JSON cells use ubuntu:26.04; 2404 JSON cells use empty container.
+ok = ('ubuntu:26.04' in raw and 'debian:bookworm' in raw
+      and 'ubuntu-24.04-arm' in raw and 'ubuntu-24.04' in raw)
 print('1' if ok else '0')
 ")
-    assert_true "py: 2604 cells use ubuntu:26.04 container, 2404 cells do not" "${r}"
+    assert_true "py: matrix JSON pairs 2604 with ubuntu:26.04 container, bookworm with debian:bookworm" "${r}"
 
     r=$(py "
 import sys, yaml
@@ -201,9 +234,9 @@ d = yaml.safe_load(open(sys.argv[1]))
 # 'on' may parse as the boolean True key in YAML.
 on = d.get('on', d.get(True))
 crons = {c['cron'] for c in on['schedule']}
-print('1' if {'30 4 * * *','30 5 * * *','30 6 * * *'} <= crons else '0')
+print('1' if {'30 4 * * 0','30 5 * * *','30 6 * * *'} <= crons else '0')
 ")
-    assert_true "py: three schedule crons (nightly 04:30, stable 05:30, v5 06:30)" "${r}"
+    assert_true "py: schedule crons are weekly Sunday nightly (30 4 * * 0) + stable 05:30 + v5 06:30" "${r}"
 
     r=$(py "
 import sys, yaml
@@ -217,15 +250,24 @@ print('1' if opts == ['stable','v5','nightly'] else '0')
     r=$(py "
 import sys, yaml
 d = yaml.safe_load(open(sys.argv[1]))
-# check-changes fires only on the nightly cron; check-republish keys on resolve-track.
+on = d.get('on', d.get(True))
+inp = on['workflow_dispatch']['inputs'].get('build_arm', {})
+print('1' if inp.get('type') == 'boolean' and inp.get('default') is False else '0')
+")
+    assert_true "py: dispatch build_arm is boolean default false" "${r}"
+
+    r=$(py "
+import sys, yaml
+d = yaml.safe_load(open(sys.argv[1]))
+# check-changes fires only on the Sunday nightly cron; check-republish keys on resolve-track.
 cc = str(d['jobs']['check-changes']['if'])
 cr = str(d['jobs']['check-republish']['if'])
-ok = (\"github.event.schedule == '30 4 * * *'\" in cc
+ok = (\"github.event.schedule == '30 4 * * 0'\" in cc
       and 'resolve-track' in str(d['jobs']['check-republish'].get('needs', []))
       and \"outputs.track == 'stable'\" in cr and \"outputs.track == 'v5'\" in cr)
 print('1' if ok else '0')
 ")
-    assert_true "py: check-changes is nightly-cron-only; check-republish gates stable/v5" "${r}"
+    assert_true "py: check-changes is Sunday-nightly-cron-only; check-republish gates stable/v5" "${r}"
 
     r=$(py "
 import sys, yaml
@@ -233,6 +275,13 @@ d = yaml.safe_load(open(sys.argv[1]))
 print('1' if 'resolve-track' in d['jobs']['build']['needs'] else '0')
 ")
     assert_true "py: build job depends on resolve-track" "${r}"
+
+    r=$(py "
+import sys, yaml
+raw = open(sys.argv[1]).read()
+print('1' if 'retention-days: 1' in raw else '0')
+")
+    assert_true "py: artifact retention-days is 1" "${r}"
 }
 
 # ============================================
@@ -258,44 +307,62 @@ run_grep_assertions() {
     ff=$(printf '%s\n' "${NOCOMMENT}" | grep -Eqc 'fail-fast:[[:space:]]*false' && echo 1 || echo 0)
     assert_true "grep: fail-fast: false present" "${ff}"
 
-    # 3. exactly four matrix cells (count '- distro:' lines)
+    # 3. dynamic matrix: build uses fromJson(needs.resolve-track.outputs.matrix)
+    assert_contains "grep: build matrix uses fromJson(needs.resolve-track.outputs.matrix)" \
+        "${NOCOMMENT}" 'fromJson(needs.resolve-track.outputs.matrix)'
+
+    # 4. no static matrix cells under build ('- distro:' YAML list entries)
     local cells
-    cells=$(printf '%s\n' "${NOCOMMENT}" | grep -Ec '^[[:space:]]*-[[:space:]]*distro:')
-    assert_equals "grep: exactly 6 matrix '- distro:' cells" "6" "${cells}"
+    cells=$(printf '%s\n' "${NOCOMMENT}" | grep -Ec '^[[:space:]]*-[[:space:]]*distro:' || true)
+    assert_equals "grep: no static matrix '- distro:' cells (dynamic matrix)" "0" "${cells}"
 
-    # 4. two 2404 + two 2604, two amd64 + two arm64 among cells
-    local d2404 d2604 aamd aarm
-    d2404=$(printf '%s\n' "${NOCOMMENT}" | grep -Ec "distro:[[:space:]]*'?2404'?")
-    d2604=$(printf '%s\n' "${NOCOMMENT}" | grep -Ec "distro:[[:space:]]*'?2604'?")
-    aamd=$(printf '%s\n' "${NOCOMMENT}" | grep -Ec '^[[:space:]]*arch:[[:space:]]*amd64')
-    aarm=$(printf '%s\n' "${NOCOMMENT}" | grep -Ec '^[[:space:]]*arch:[[:space:]]*arm64')
-    assert_equals "grep: two distro 2404 cells" "2" "${d2404}"
-    assert_equals "grep: two distro 2604 cells" "2" "${d2604}"
-    assert_equals "grep: three amd64 cells" "3" "${aamd}"
-    assert_equals "grep: three arm64 cells" "3" "${aarm}"
+    # 5. resolve-track defines amd64-only + full JSON with expected distros/arches
+    assert_contains "grep: resolve-track defines AMD64_ONLY matrix" \
+        "${NOCOMMENT}" 'AMD64_ONLY'
+    local has_full
+    has_full=$(printf '%s\n' "${NOCOMMENT}" | grep -Ec "FULL" || true)
+    assert_true "grep: FULL matrix variable present" \
+        "$([[ "${has_full}" -ge 1 ]] && echo 1 || echo 0)"
+    assert_contains "grep: matrix gated on inputs.build_arm" \
+        "${NOCOMMENT}" 'inputs.build_arm'
+    local aarm
+    aarm=$(printf '%s\n' "${NOCOMMENT}" | grep -Ec 'arm64' || true)
+    assert_true "grep: arm64 cells present in full-matrix JSON" \
+        "$([[ "${aarm}" -ge 2 ]] && echo 1 || echo 0)"
+    local d2404 d2604 dbw
+    d2404=$(printf '%s\n' "${NOCOMMENT}" | grep -Ec '2404' || true)
+    d2604=$(printf '%s\n' "${NOCOMMENT}" | grep -Ec '2604' || true)
+    dbw=$(printf '%s\n' "${NOCOMMENT}" | grep -Ec 'bookworm' || true)
+    assert_true "grep: distro 2404 in matrix JSON" "$([[ "${d2404}" -ge 1 ]] && echo 1 || echo 0)"
+    assert_true "grep: distro 2604 in matrix JSON" "$([[ "${d2604}" -ge 1 ]] && echo 1 || echo 0)"
+    assert_true "grep: distro bookworm in matrix JSON" "$([[ "${dbw}" -ge 1 ]] && echo 1 || echo 0)"
 
-    # 5. ubuntu:26.04 container at least twice
+    # 6. ubuntu:26.04 container at least twice (inside JSON fragments)
     local cont
-    cont=$(printf '%s\n' "${NOCOMMENT}" | grep -Ec 'container:[[:space:]]*ubuntu:26\.04')
+    cont=$(printf '%s\n' "${NOCOMMENT}" | grep -Ec 'ubuntu:26\.04' || true)
     assert_true "grep: container ubuntu:26.04 appears >= 2 times" \
         "$([[ "${cont}" -ge 2 ]] && echo 1 || echo 0)"
 
-    # 6. Go cache key carries distro dimension
+    # 7. Go cache key carries distro dimension
     assert_contains "grep: Go cache key has matrix.distro+arch" \
         "${NOCOMMENT}" 'go-${{ matrix.distro }}-${{ matrix.arch }}'
 
-    # 7. artifact name carries distro+arch
+    # 8. artifact name carries distro+arch
     assert_contains "grep: artifact name has matrix.distro+arch" \
         "${NOCOMMENT}" 'debs-${{ matrix.distro }}-${{ matrix.arch }}'
 
-    # 8. publish gating expression present
+    # 9. artifact retention-days: 1
+    assert_contains "grep: artifact retention-days: 1" \
+        "${NOCOMMENT}" 'retention-days: 1'
+
+    # 10. publish gating expression present
     assert_contains "grep: publish gating needs.build.result == 'success'" \
         "${NOCOMMENT}" "needs.build.result == 'success'"
 
-    # 9. no cross-distro merge: both per-distro patterns, no bare debs-*
+    # 11. no cross-distro merge: both per-distro patterns, no bare debs-*
     local p2404 p2604 pbare
-    p2404=$(printf '%s\n' "${NOCOMMENT}" | grep -Ec 'pattern:[[:space:]]*debs-2404-\*')
-    p2604=$(printf '%s\n' "${NOCOMMENT}" | grep -Ec 'pattern:[[:space:]]*debs-2604-\*')
+    p2404=$(printf '%s\n' "${NOCOMMENT}" | grep -Ec 'pattern:[[:space:]]*debs-2404-\*' || true)
+    p2604=$(printf '%s\n' "${NOCOMMENT}" | grep -Ec 'pattern:[[:space:]]*debs-2604-\*' || true)
     if printf '%s\n' "${NOCOMMENT}" | grep -Eq 'pattern:[[:space:]]*debs-\*[[:space:]]*$'; then
         pbare=1
     else
@@ -306,24 +373,32 @@ run_grep_assertions() {
     assert_true "grep: no bare 'pattern: debs-*' (no cross-distro merge)" \
         "$([[ "${pbare}" -eq 0 ]] && echo 1 || echo 0)"
 
-    # 10. ci_publish.sh invoked for both 2404 and 2604
+    # 12. ci_publish.sh invoked for both 2404 and 2604
     local l2404 l2604
-    l2404=$(printf '%s\n' "${NOCOMMENT}" | grep -Ec '"2404"')
-    l2604=$(printf '%s\n' "${NOCOMMENT}" | grep -Ec '"2604"')
+    l2404=$(printf '%s\n' "${NOCOMMENT}" | grep -Ec '"2404"' || true)
+    l2604=$(printf '%s\n' "${NOCOMMENT}" | grep -Ec '"2604"' || true)
     assert_true "grep: compact label \"2404\" present in publish" \
         "$([[ "${l2404}" -ge 1 ]] && echo 1 || echo 0)"
     assert_true "grep: compact label \"2604\" present in publish" \
         "$([[ "${l2604}" -ge 1 ]] && echo 1 || echo 0)"
     assert_contains "grep: ci_publish.sh invoked" "${NOCOMMENT}" "ci_publish.sh"
 
-    # 11. three schedule crons (nightly/stable/v5) + resolve-track job
-    local ncron
-    ncron=$(printf '%s\n' "${NOCOMMENT}" | grep -Ec "cron:[[:space:]]*'30 [456] \* \* \*'")
-    assert_equals "grep: three schedule crons (30 4/5/6)" "3" "${ncron}"
+    # 13. Sunday nightly cron + stable/v5 crons, resolve-track job, outputs
+    assert_contains "grep: Sunday nightly cron 30 4 * * 0" "${NOCOMMENT}" "30 4 * * 0"
+    local has_old_nightly
+    if printf '%s\n' "${NOCOMMENT}" | grep -Eq "'30 4 \\* \\* \\*'"; then
+        has_old_nightly=0
+    else
+        has_old_nightly=1
+    fi
+    assert_true "grep: no daily nightly cron '30 4 * * *' remains" "${has_old_nightly}"
     assert_contains "grep: resolve-track job present" "${NOCOMMENT}" "resolve-track:"
+    assert_contains "grep: resolve-track outputs matrix" "${NOCOMMENT}" "matrix:"
+    assert_contains "grep: check-changes gated on Sunday cron" "${NOCOMMENT}" "github.event.schedule == '30 4 * * 0'"
 
-    # 12. dispatch offers v5, never the retired edge track
+    # 14. dispatch offers v5 + build_arm, never the retired edge track
     assert_contains "grep: dispatch build_track offers v5" "${NOCOMMENT}" "- v5"
+    assert_contains "grep: dispatch offers build_arm" "${NOCOMMENT}" "build_arm:"
     local has_edge
     if printf '%s\n' "${NOCOMMENT}" | grep -Eq '^[[:space:]]*-[[:space:]]*edge[[:space:]]*$'; then
         has_edge=0
