@@ -308,8 +308,10 @@ run_grep_assertions() {
     assert_true "grep: fail-fast: false present" "${ff}"
 
     # 3. dynamic matrix: build uses fromJson(needs.resolve-track.outputs.matrix)
+    # with empty-output fallback so a skipped resolve-track yields an empty
+    # matrix instead of a fromJson evaluation error.
     assert_contains "grep: build matrix uses fromJson(needs.resolve-track.outputs.matrix)" \
-        "${NOCOMMENT}" 'fromJson(needs.resolve-track.outputs.matrix)'
+        "${NOCOMMENT}" 'fromJson(needs.resolve-track.outputs.matrix ||'
 
     # 4. no static matrix cells under build ('- distro:' YAML list entries)
     local cells

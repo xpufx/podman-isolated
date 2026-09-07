@@ -240,7 +240,7 @@ jobs:
         shell: bash
     strategy:
       fail-fast: false
-      matrix: ${{ fromJson(needs.resolve-track.outputs.matrix) }}
+      matrix: ${{ fromJson(needs.resolve-track.outputs.matrix || '{"include":[]}') }}
     steps:
       # 2604 cells start from a bare ubuntu:26.04 container as root, which lacks
       # the tooling the host runner images already ship (sudo + a sudo-capable
