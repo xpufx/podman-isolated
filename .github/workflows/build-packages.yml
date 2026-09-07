@@ -715,6 +715,11 @@ jobs:
             echo "PPA_DEPLOY_KEY secret not found; skipping deploy to public repo."
             exit 0
           fi
+          # Minimal CI images may lack an SSH client; install on demand.
+          # No-op on GitHub-hosted runners and full builder images.
+          if ! command -v ssh-keyscan >/dev/null 2>&1; then
+            apt-get update -qq && apt-get install -y -qq --no-install-recommends openssh-client git
+          fi
           mkdir -p ~/.ssh
           echo "${PPA_DEPLOY_KEY}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
