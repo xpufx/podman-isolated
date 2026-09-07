@@ -50,13 +50,13 @@ assert_equals() {
     fi
 }
 
-if ! command -v reprepro &>/dev/null \
-   || ! command -v gpg &>/dev/null \
-   || ! command -v dpkg-deb &>/dev/null \
-   || ! command -v sha256sum &>/dev/null \
-   || ! command -v sha512sum &>/dev/null \
-   || ! command -v python3 &>/dev/null \
-   || ! command -v curl &>/dev/null; then
+if ! command -v reprepro &>/dev/null ||
+    ! command -v gpg &>/dev/null ||
+    ! command -v dpkg-deb &>/dev/null ||
+    ! command -v sha256sum &>/dev/null ||
+    ! command -v sha512sum &>/dev/null ||
+    ! command -v python3 &>/dev/null ||
+    ! command -v curl &>/dev/null; then
     echo "  SKIP: reprepro/gpg/dpkg-deb/sha256sum/sha512sum/python3/curl not all available."
     echo "        Ubuntu-only integration harness — run on the ubuntu-24 VM / CI:"
     echo "          sudo apt-get update && sudo apt-get install -y reprepro"
@@ -82,7 +82,7 @@ cleanup() {
 trap cleanup EXIT
 
 echo ">>> Generating throwaway GPG signing key..."
-cat > "${TMP_ROOT}/keygen" <<'EOF_KEYGEN'
+cat >"${TMP_ROOT}/keygen" <<'EOF_KEYGEN'
 %no-protection
 Key-Type: eddsa
 Key-Curve: ed25519
@@ -94,7 +94,7 @@ Expire-Date: 0
 %commit
 EOF_KEYGEN
 if ! gpg --batch --gen-key "${TMP_ROOT}/keygen" >/dev/null 2>&1; then
-    cat > "${TMP_ROOT}/keygen" <<'EOF_KEYGEN_RSA'
+    cat >"${TMP_ROOT}/keygen" <<'EOF_KEYGEN_RSA'
 %no-protection
 Key-Type: RSA
 Key-Length: 3072
@@ -117,7 +117,12 @@ build_deb() {
     local lstage="${TMP_ROOT}/stage-${lpkg}-${lver}-${larch}-$(echo "${lpayload}" | cksum | awk '{print $1}')"
     rm -rf "${lstage}"
     mkdir -p "${lstage}/DEBIAN" "${lstage}/usr/share/doc/${lpkg}"
-    cat > "${lstage}/DEBIAN/control" <<EOF_CTL
+    # dpkg-deb requires the control dir mode in [0755,0775]. mkdir inherits
+    # the process umask (022 on GitHub runners -> 755 fine; some CI containers
+    # run umask 000 -> 777 and dpkg-deb hard-fails). Enforce explicitly so the
+    # fixture builds identically on both forges.
+    chmod 755 "${lstage}/DEBIAN" "${lstage}/usr/share/doc/${lpkg}"
+    cat >"${lstage}/DEBIAN/control" <<EOF_CTL
 Package: ${lpkg}
 Version: ${lver}
 Architecture: ${larch}
@@ -127,18 +132,21 @@ Priority: optional
 Description: Fixture ${lpkg} for the shared-pool regression harness
  Not a real package.
 EOF_CTL
-    printf '%s\n' "${lpayload}" > "${lstage}/usr/share/doc/${lpkg}/payload"
+    printf '%s\n' "${lpayload}" >"${lstage}/usr/share/doc/${lpkg}/payload"
     mkdir -p "${lout}"
     dpkg-deb --build --root-owner-group "${lstage}" \
         "${lout}/${lpkg}_${lver}_${larch}.deb" >/dev/null
 }
 
-pkg_size() {  # <packages-file> <package> -> Size field of first matching stanza
+pkg_size() { # <packages-file> <package> -> Size field of first matching stanza
     awk -v p="$2" '/^Package:/{cur=$2} /^Size:/{if(cur==p){print $2;exit}}' "$1"
 }
 
-pkg_version() {  # <packages-file> <package> -> Version field, or MISSING
-    [[ -f "$1" ]] || { echo "MISSING"; return; }
+pkg_version() { # <packages-file> <package> -> Version field, or MISSING
+    [[ -f "$1" ]] || {
+        echo "MISSING"
+        return
+    }
     awk -v p="$2" '/^Package:/{cur=$2} /^Version:/{if(cur==p){print $2;found=1;exit}} END{if(!found)print "MISSING"}' "$1"
 }
 
@@ -146,8 +154,8 @@ pkg_version() {  # <packages-file> <package> -> Version field, or MISSING
 # per-distro suffix (~ubuntu24.04 / ~ubuntu26.04). The collision this harness
 # reproduces is SAME-distro cross-track (stable-<D> vs v5-<D> sharing skopeo),
 # so every fixture is parameterized by distro to prove the fix on both cells.
-dotted() { case "$1" in 2404) echo 24.04;; 2604) echo 26.04;; esac; }
-skopeo_ver() { echo "1.23.0~ubuntu$(dotted "$1").podman1"; }   # shared across stable + v5
+dotted() { case "$1" in 2404) echo 24.04 ;; 2604) echo 26.04 ;; esac }
+skopeo_ver() { echo "1.23.0~ubuntu$(dotted "$1").podman1"; } # shared across stable + v5
 skopeo_filename() { echo "pool/main/p/podman-skopeo/podman-skopeo_$(skopeo_ver "$1")_amd64.deb"; }
 
 # add_byhash_and_resign installs a RETURN trap referencing a function-local
@@ -166,8 +174,10 @@ source "${PROJECT_ROOT}/scripts/repo_byhash.sh"
 
 build_live() {
     local live="$1" skopeo_payload="$2" distro="$3"
-    local d; d="$(dotted "${distro}")"
-    local sk; sk="$(skopeo_ver "${distro}")"
+    local d
+    d="$(dotted "${distro}")"
+    local sk
+    sk="$(skopeo_ver "${distro}")"
     local stable_debs="${TMP_ROOT}/live-stable-${distro}-$$-${RANDOM}"
     local v5_debs="${TMP_ROOT}/live-v5-${distro}-$$-${RANDOM}"
     local shared_debs="${TMP_ROOT}/live-shared-${distro}-$$-${RANDOM}"
@@ -186,18 +196,18 @@ build_live() {
         cp "${shared_debs}/podman-skopeo_${sk}_${arch}.deb" "${v5_debs}/"
     done
     "${PROJECT_ROOT}/scripts/repo_manage.sh" stable "${distro}" "${stable_debs}" "${live}" >/dev/null
-    "${PROJECT_ROOT}/scripts/repo_manage.sh" v5     "${distro}" "${v5_debs}"     "${live}" >/dev/null
+    "${PROJECT_ROOT}/scripts/repo_manage.sh" v5 "${distro}" "${v5_debs}" "${live}" >/dev/null
 }
 
 # Suites to sign for a given distro's live repo (2404 also carries the bare alias).
 live_suites() {
     case "$1" in
-        2404) echo "stable-2404 stable v5-2404";;
-        2604) echo "stable-2604 v5-2604";;
+    2404) echo "stable-2404 stable v5-2404" ;;
+    2604) echo "stable-2604 v5-2604" ;;
     esac
 }
 
-serve() {  # <dir> <probe-suite> -> sets REPO_URL / HTTP_PID
+serve() { # <dir> <probe-suite> -> sets REPO_URL / HTTP_PID
     local dir="$1" probe="$2"
     [[ -n "${HTTP_PID}" ]] && kill "${HTTP_PID}" >/dev/null 2>&1 || true
     local port
@@ -221,8 +231,10 @@ serve() {  # <dir> <probe-suite> -> sets REPO_URL / HTTP_PID
 # so it is free of the RETURN-trap-leak constraint noted above build_live.
 assert_prevent() {
     local distro="$1" live="$2"
-    local d; d="$(dotted "${distro}")"
-    local sk; sk="$(skopeo_ver "${distro}")"
+    local d
+    d="$(dotted "${distro}")"
+    local sk
+    sk="$(skopeo_ver "${distro}")"
     local live_size
     live_size="$(pkg_size "${live}/dists/stable-${distro}/main/binary-amd64/Packages" "podman-skopeo")"
     echo "  live stable-${distro} skopeo Size: ${live_size}"
@@ -241,7 +253,7 @@ assert_prevent() {
     mkdir -p "${out}"
     local rc=0
     bash "${PROJECT_ROOT}/scripts/ci_publish.sh" v5 "${distro}" "${v5new}" "${REPO_URL}" "${out}" \
-        > "${TMP_ROOT}/prevent-${distro}.log" 2>&1 || rc=$?
+        >"${TMP_ROOT}/prevent-${distro}.log" 2>&1 || rc=$?
     if [[ "${rc}" -ne 0 ]]; then
         echo "  (ci_publish.sh exited ${rc}; tail:)"
         tail -25 "${TMP_ROOT}/prevent-${distro}.log" | sed 's/^/      /'
@@ -265,7 +277,9 @@ echo "Scenario A: pool immutability prevents cross-track overwrite (24.04)"
 echo "========================================"
 LIVE_A="${TMP_ROOT}/live-a"
 build_live "${LIVE_A}" "skopeo-canonical-payload-AAAA" 2404
-for s in $(live_suites 2404); do   # top-level signing (see note above build_live)
+for s in $( # top-level signing (see note above build_live)
+    live_suites 2404
+); do
     [[ -f "${LIVE_A}/dists/${s}/Release" ]] && add_byhash_and_resign "${s}" "${LIVE_A}" >/dev/null
 done
 serve "${LIVE_A}" "stable-2404" || true
@@ -331,7 +345,7 @@ OUT_B="${TMP_ROOT}/out-b"
 mkdir -p "${OUT_B}"
 rc=0
 bash "${PROJECT_ROOT}/scripts/ci_publish.sh" nightly 2404 "${NIGHTLY_DEBS}" "${REPO_URL}" "${OUT_B}" \
-    > "${TMP_ROOT}/b.log" 2>&1 || rc=$?
+    >"${TMP_ROOT}/b.log" 2>&1 || rc=$?
 if [[ "${rc}" -ne 0 ]]; then
     echo "  (ci_publish.sh exited ${rc}; tail:)"
     tail -25 "${TMP_ROOT}/b.log" | sed 's/^/      /'
@@ -389,13 +403,13 @@ assert_equals "live stable-2604 arm64 has podman-podman (precondition)" \
 # bumped to 6.1.0.
 STABLE_NEW_AMD64="${TMP_ROOT}/stable-new-amd64"
 build_deb "podman-podman" "6.1.0~ubuntu26.04.podman1" "amd64" "${STABLE_NEW_AMD64}" "podman-6-1-0"
-build_deb "podman-skopeo" "$(skopeo_ver 2604)"        "amd64" "${STABLE_NEW_AMD64}" "skopeo-canonical-payload-AAAA"
+build_deb "podman-skopeo" "$(skopeo_ver 2604)" "amd64" "${STABLE_NEW_AMD64}" "skopeo-canonical-payload-AAAA"
 
 OUT_D="${TMP_ROOT}/out-d"
 mkdir -p "${OUT_D}"
 rc=0
 bash "${PROJECT_ROOT}/scripts/ci_publish.sh" stable 2604 "${STABLE_NEW_AMD64}" "${REPO_URL}" "${OUT_D}" \
-    > "${TMP_ROOT}/d.log" 2>&1 || rc=$?
+    >"${TMP_ROOT}/d.log" 2>&1 || rc=$?
 if [[ "${rc}" -ne 0 ]]; then
     echo "  (ci_publish.sh exited ${rc}; tail:)"
     tail -25 "${TMP_ROOT}/d.log" | sed 's/^/      /'

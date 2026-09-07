@@ -52,13 +52,13 @@ assert_equals() {
 # Platform skip (macOS dev host has no reprepro/dpkg-deb)
 # ============================================
 
-if ! command -v reprepro &>/dev/null \
-   || ! command -v gpg &>/dev/null \
-   || ! command -v dpkg-deb &>/dev/null \
-   || ! command -v sha256sum &>/dev/null \
-   || ! command -v sha512sum &>/dev/null \
-   || ! command -v python3 &>/dev/null \
-   || ! command -v curl &>/dev/null; then
+if ! command -v reprepro &>/dev/null ||
+    ! command -v gpg &>/dev/null ||
+    ! command -v dpkg-deb &>/dev/null ||
+    ! command -v sha256sum &>/dev/null ||
+    ! command -v sha512sum &>/dev/null ||
+    ! command -v python3 &>/dev/null ||
+    ! command -v curl &>/dev/null; then
     echo "  SKIP: reprepro/gpg/dpkg-deb/sha256sum/sha512sum/python3/curl not all available."
     echo "        This is an Ubuntu-only integration harness. Run it on the"
     echo "        ubuntu-24 VM / CI. Install reprepro and re-run there:"
@@ -87,7 +87,7 @@ cleanup() {
 trap cleanup EXIT
 
 echo ">>> Generating throwaway GPG signing key in isolated GNUPGHOME..."
-cat > "${TMP_ROOT}/keygen" <<'EOF_KEYGEN'
+cat >"${TMP_ROOT}/keygen" <<'EOF_KEYGEN'
 %no-protection
 Key-Type: eddsa
 Key-Curve: ed25519
@@ -99,7 +99,7 @@ Expire-Date: 0
 %commit
 EOF_KEYGEN
 if ! gpg --batch --gen-key "${TMP_ROOT}/keygen" >/dev/null 2>&1; then
-    cat > "${TMP_ROOT}/keygen" <<'EOF_KEYGEN_RSA'
+    cat >"${TMP_ROOT}/keygen" <<'EOF_KEYGEN_RSA'
 %no-protection
 Key-Type: RSA
 Key-Length: 3072
@@ -121,7 +121,12 @@ build_fixture_deb() {
     local lstage="${TMP_ROOT}/stage-${lpkg}-${lver}-${larch}"
     rm -rf "${lstage}"
     mkdir -p "${lstage}/DEBIAN" "${lstage}/usr/share/doc/${lpkg}"
-    cat > "${lstage}/DEBIAN/control" <<EOF_CTL
+    # dpkg-deb requires the control dir mode in [0755,0775]. mkdir inherits
+    # the process umask (022 on GitHub runners -> 755 fine; some CI containers
+    # run umask 000 -> 777 and dpkg-deb hard-fails). Enforce explicitly so the
+    # fixture builds identically on both forges.
+    chmod 755 "${lstage}/DEBIAN" "${lstage}/usr/share/doc/${lpkg}"
+    cat >"${lstage}/DEBIAN/control" <<EOF_CTL
 Package: ${lpkg}
 Version: ${lver}
 Architecture: ${larch}
@@ -131,7 +136,7 @@ Priority: optional
 Description: Fixture ${lpkg} for the multi-pass publish harness
  Not a real package; exercises ci_publish.sh's two-pass accumulation.
 EOF_CTL
-    echo "fixture ${lpkg} ${lver}" > "${lstage}/usr/share/doc/${lpkg}/README"
+    echo "fixture ${lpkg} ${lver}" >"${lstage}/usr/share/doc/${lpkg}/README"
     mkdir -p "${lout}"
     dpkg-deb --build --root-owner-group "${lstage}" \
         "${lout}/${lpkg}_${lver}_${larch}.deb" >/dev/null
@@ -237,9 +242,9 @@ got_2604="$(pkg_version "${OUT}/dists/stable-2604/main/binary-amd64/Packages" "$
 # 2604 pass's mirror-down. Pre-fix these read OLD (5.8.0).
 assert_equals "stable-2404 amd64 kept fresh (not clobbered by 2604 pass)" "${NEW_2404}" "${got_2404_amd}"
 assert_equals "stable-2404 arm64 kept fresh (not clobbered by 2604 pass)" "${NEW_2404}" "${got_2404_arm}"
-assert_equals "bare 'stable' alias kept fresh (not clobbered)"            "${NEW_2404}" "${got_bare}"
+assert_equals "bare 'stable' alias kept fresh (not clobbered)" "${NEW_2404}" "${got_bare}"
 # Control: the last pass's own suite is fresh too.
-assert_equals "stable-2604 published fresh"                               "${NEW_2604}" "${got_2604}"
+assert_equals "stable-2604 published fresh" "${NEW_2604}" "${got_2604}"
 
 echo ""
 echo "========================================"

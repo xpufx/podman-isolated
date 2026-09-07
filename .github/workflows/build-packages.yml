@@ -1,12 +1,10 @@
 name: "Package Builds"
 
 on:
-  push:
-    branches:
-      - main
-    paths-ignore:
-      - "**.md"
-      - "docs/**"
+  # NOTE: no push trigger by design. Per-push validation is lint.yml's job
+  # (shellcheck + unit tests, ~1 min). Full matrix compilation (~15 min/cell)
+  # runs on schedule and manual dispatch only — every push used to burn a full
+  # matrix on both forges for workflow/test-only changes.
   schedule:
     # One cron per auto-updating track; the firing cron selects the track (see the
     # resolve-track job). Staggered so the "pages" concurrency group serializes them.
