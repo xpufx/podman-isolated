@@ -334,7 +334,37 @@ jobs:
             'Acquire::http::Timeout "30";' | sudo tee /etc/apt/apt.conf.d/99-ci-resilient > /dev/null
           sudo apt-get update
 
-      - name: Build all components
+      - name: Compute tree cache key
+        id: tree-key
+        run: |
+          TRACK="${{ steps.track.outputs.track }}"
+          # Pins hash: resolver output fully determines WHAT gets built.
+          # Resolver rc=3 means deterministic hold (nothing to build); the main
+          # build step exits early in that case, so any stable key will do here.
+          if RESOLVED="$(./scripts/resolve_versions.sh "versions-${TRACK}.env" 2>/dev/null)"; then
+            PINS="$(printf '%s' "$RESOLVED" | sha256sum | cut -c1-12)"
+          else
+            PINS="no-build"
+          fi
+          # Scripts hash: anything that affects HOW it gets built busts the key.
+          # Deliberately broad (whole scripts/ dir) — over-busting only costs a
+          # rebuild, under-busting would poison the cache with stale binaries.
+          SCRIPTS="$(git ls-files scripts/ setup.sh config.sh functions.sh "versions-${TRACK}.env" | xargs sha256sum 2>/dev/null | sha256sum | cut -c1-12)"
+          echo "pins=${PINS}" >> "$GITHUB_OUTPUT"
+          echo "scripts=${SCRIPTS}" >> "$GITHUB_OUTPUT"
+          echo "Tree cache key suffix: ${PINS}-${SCRIPTS}"
+
+      - name: Restore compiled tree cache
+        id: tree-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          # The DESTDIR staging tree (compiled binaries + staged files).
+          # Exact-match key only (no restore-keys): a hit means pins AND build
+          # scripts are identical to a previous successful compile, so setup.sh
+          # can skip straight to toolchain + packaging. Any upstream release,
+          # resolver change, or build-script edit busts the key -> full build.
+          path: ${{ runner.temp }}/podman-staging
+          key: podman-tree-${{ matrix.distro }}-${{ matrix.arch }}-${{ steps.track.outputs.track }}-${{ steps.tree-key.outputs.pins }}-${{ steps.tree-key.outputs.scripts }}
         run: |
           # Dotted DISTRO override (T-21-03): closed case map from the matrix
           # label to the dotted VERSION_ID detect_distro_version_id validates
@@ -367,6 +397,11 @@ jobs:
           if [[ -n "${{ matrix.container }}" ]] || [[ ! -r /dev/fuse ]]; then
             ENV_ARGS="$ENV_ARGS SKIP_FUSE_CHECK=true"
           fi
+          # Compiled-tree cache hit: skip the 12 build_* compiles in setup.sh
+          # (SETUP_SKIP_BUILD guard). Toolchain + config install still run, and
+          # packaging below always runs, so packaging-only changes take effect
+          # without recompiling. Cache miss (or first run): full build.
+          ENV_ARGS="$ENV_ARGS SETUP_SKIP_BUILD=${{ steps.tree-cache.outputs.cache-hit == 'true' }}"
           TRACK="${{ steps.track.outputs.track }}"
           if [[ "$TRACK" == "stable" || "$TRACK" == "v5" ]]; then
             # Materialize concrete *_TAG values from the track policy (series-cap +

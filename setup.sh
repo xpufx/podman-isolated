@@ -8,7 +8,10 @@ set -euo pipefail
 
 # Determine toolpath if not set already
 relativepath="./" # Define relative path to go from this script to the root level of the tool
-if [[ ! -v toolpath ]]; then scriptpath=$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd ); toolpath=$(realpath --canonicalize-missing ${scriptpath}/${relativepath}); fi
+if [[ ! -v toolpath ]]; then
+    scriptpath=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+    toolpath=$(realpath --canonicalize-missing ${scriptpath}/${relativepath})
+fi
 
 # Load Configuration
 source "${toolpath}/config.sh"
@@ -64,44 +67,51 @@ run_script "install_protoc.sh"
 # Install Go
 run_script "install_go.sh"
 
-# Build AardVark DNS
-run_script "build_aardvark_dns.sh"
+# Build Components (skippable when the compiled tree is restored from cache —
+# SETUP_SKIP_BUILD=true is set by CI when the cache key covering resolved
+# version pins + build scripts hits. Deps, toolchain and config install above
+# and below always run, so a cache hit still gets a fresh toolchain and
+# freshly rendered configs; only compilation is skipped.)
+if [[ "${SETUP_SKIP_BUILD:-false}" != "true" ]]; then
+    # Build AardVark DNS
+    run_script "build_aardvark_dns.sh"
 
-# Build Buildah
-run_script "build_buildah.sh"
+    # Build Buildah
+    run_script "build_buildah.sh"
 
-# Build Catatonit
-run_script "build_catatonit.sh"
+    # Build Catatonit
+    run_script "build_catatonit.sh"
 
-# Build Conmon
-run_script "build_conmon.sh"
+    # Build Conmon
+    run_script "build_conmon.sh"
 
-# Build CRUN
-run_script "build_crun.sh"
+    # Build CRUN
+    run_script "build_crun.sh"
 
-# Build Fuse-OverlayFS
-run_script "build_fuse-overlayfs.sh"
+    # Build Fuse-OverlayFS
+    run_script "build_fuse-overlayfs.sh"
 
-# Build Go-MD2Man
-run_script "build_go-md2man.sh"
+    # Build Go-MD2Man
+    run_script "build_go-md2man.sh"
 
-# Build Container-Libs (containers-common config files)
-run_script "build_container-libs.sh"
+    # Build Container-Libs (containers-common config files)
+    run_script "build_container-libs.sh"
 
-# Build Netavark
-run_script "build_netavark.sh"
+    # Build Netavark
+    run_script "build_netavark.sh"
 
-# Build Pasta
-run_script "build_pasta.sh"
+    # Build Pasta
+    run_script "build_pasta.sh"
 
-# Build Podman
-run_script "build_podman.sh"
+    # Build Podman
+    run_script "build_podman.sh"
 
-# Build Skopeo
-run_script "build_skopeo.sh"
+    # Build Skopeo
+    run_script "build_skopeo.sh"
 
-# Build Toolbox
-run_script "build_toolbox.sh"
+    # Build Toolbox
+    run_script "build_toolbox.sh"
+fi # SETUP_SKIP_BUILD
 
 # Install Container Configuration Files
 run_script "install_container-configs.sh"
