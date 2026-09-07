@@ -717,8 +717,11 @@ jobs:
           fi
           # Minimal CI images may lack an SSH client; install on demand.
           # No-op on GitHub-hosted runners and full builder images.
+          # Job steps run as non-root (uid 1001) on both forges, so escalate
+          # via passwordless sudo (present on GitHub hosts and our image).
           if ! command -v ssh-keyscan >/dev/null 2>&1; then
-            apt-get update -qq && apt-get install -y -qq --no-install-recommends openssh-client git
+            if [ "$(id -u)" = "0" ]; then _SUDO=""; elif sudo -n true 2>/dev/null; then _SUDO="sudo"; else echo "::error::no root and no passwordless sudo; cannot install openssh-client" >&2; exit 1; fi
+            $_SUDO apt-get update -qq && $_SUDO apt-get install -y -qq --no-install-recommends openssh-client git
           fi
           mkdir -p ~/.ssh
           echo "${PPA_DEPLOY_KEY}" > ~/.ssh/id_ed25519
