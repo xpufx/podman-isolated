@@ -276,7 +276,20 @@ jobs:
           else
             apt-get update
           fi
-          apt-get install -y --no-install-recommends sudo git curl ca-certificates bash
+          apt-get install -y --no-install-recommends sudo git curl ca-certificates bash xz-utils
+          # Node 22 for actions/checkout (a Node action). GitHub-hosted runners
+          # inject Node into job containers automatically; Forgejo runners do
+          # not, so bare ubuntu:/debian: containers would fail checkout with
+          # "node: executable file not found in $PATH". Pinned binary tarball
+          # keeps this identical on both forges and both arches (POSIX sh).
+          NODE_VER="v22.14.0"
+          case "$(dpkg --print-architecture)" in
+            arm64) NODE_ARCH="arm64" ;;
+            *) NODE_ARCH="x64" ;;
+          esac
+          curl -fsSL "https://nodejs.org/dist/${NODE_VER}/node-${NODE_VER}-linux-${NODE_ARCH}.tar.xz" \
+            | tar -xJ -C /usr/local --strip-components=1
+          node --version
 
       # NOTE on /dev/fuse in the 2604 container (debugged 2026-06-07): the GHA
       # job container is created WITHOUT --device /dev/fuse. mknod'ing the node
@@ -348,9 +361,12 @@ jobs:
           ENV_ARGS="$ENV_ARGS DISTRO=$DISTRO_DOTTED"
           # Container cells: /dev/fuse is unusable inside the job container (the
           # device cgroup denies r/w on 10:229 even for root — see the NOTE above
-          # the checkout step). The fuse gate is advisory at build time (nothing
-          # opens /dev/fuse during compilation), so downgrade VAL-03 to a warning.
-          if [[ -n "${{ matrix.container }}" ]]; then
+          # the checkout step). Self-hosted runner hosts may also lack /dev/fuse
+          # entirely (GitHub-hosted runners always provide it). The fuse gate is
+          # advisory at build time (nothing opens /dev/fuse during compilation),
+          # so downgrade VAL-03 to a warning whenever the node is unusable here.
+          # No-op on GitHub hosts (/dev/fuse readable -> check still enforced).
+          if [[ -n "${{ matrix.container }}" ]] || [[ ! -r /dev/fuse ]]; then
             ENV_ARGS="$ENV_ARGS SKIP_FUSE_CHECK=true"
           fi
           TRACK="${{ steps.track.outputs.track }}"
