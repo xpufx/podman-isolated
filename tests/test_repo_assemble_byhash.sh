@@ -66,7 +66,7 @@ assert_file_exists() {
 assert_succeeds() {
     local description="$1"
     shift
-    if ( "$@" ) >/dev/null 2>&1; then
+    if ("$@") >/dev/null 2>&1; then
         echo "  PASS: ${description}"
         PASS_COUNT=$((PASS_COUNT + 1))
     else
@@ -101,10 +101,10 @@ echo ""
 # Platform skip (macOS dev host has no reprepro/dpkg-deb)
 # ============================================
 
-if ! command -v reprepro &>/dev/null \
-   || ! command -v gpg &>/dev/null \
-   || ! command -v dpkg-deb &>/dev/null \
-   || ! command -v sha256sum &>/dev/null; then
+if ! command -v reprepro &>/dev/null ||
+    ! command -v gpg &>/dev/null ||
+    ! command -v dpkg-deb &>/dev/null ||
+    ! command -v sha256sum &>/dev/null; then
     echo "  SKIP: reprepro/gpg/dpkg-deb/sha256sum not all available."
     echo "  NOTE: this Ubuntu-only integration harness runs on the Lima"
     echo "        ubuntu-24 VM / CI. Install reprepro and re-run there:"
@@ -129,7 +129,7 @@ chmod 700 "${GNUPGHOME}"
 trap 'gpgconf --homedir "${GNUPGHOME}" --kill all >/dev/null 2>&1 || true; rm -rf "${TMP_ROOT}"' EXIT
 
 echo ">>> Generating throwaway GPG signing key in isolated GNUPGHOME..."
-cat > "${TMP_ROOT}/keygen" <<'EOF_KEYGEN'
+cat >"${TMP_ROOT}/keygen" <<'EOF_KEYGEN'
 %no-protection
 Key-Type: eddsa
 Key-Curve: ed25519
@@ -142,7 +142,7 @@ Expire-Date: 0
 EOF_KEYGEN
 if ! gpg --batch --gen-key "${TMP_ROOT}/keygen" >/dev/null 2>&1; then
     # Fallback to RSA in case the gpg build lacks ed25519 batch support.
-    cat > "${TMP_ROOT}/keygen" <<'EOF_KEYGEN_RSA'
+    cat >"${TMP_ROOT}/keygen" <<'EOF_KEYGEN_RSA'
 %no-protection
 Key-Type: RSA
 Key-Length: 3072
@@ -169,7 +169,12 @@ build_fixture_deb() {
     local lstage="${TMP_ROOT}/stage-${lpkg}-${larch}"
     rm -rf "${lstage}"
     mkdir -p "${lstage}/DEBIAN" "${lstage}/usr/share/doc/${lpkg}"
-    cat > "${lstage}/DEBIAN/control" <<EOF_CTL
+    # dpkg-deb requires the control dir mode in [0755,0775]. mkdir inherits
+    # the process umask (022 on GitHub runners -> 755 fine; some CI containers
+    # run umask 000 -> 777 and dpkg-deb hard-fails). Enforce explicitly so the
+    # fixture builds identically on both forges.
+    chmod 755 "${lstage}/DEBIAN" "${lstage}/usr/share/doc/${lpkg}"
+    cat >"${lstage}/DEBIAN/control" <<EOF_CTL
 Package: ${lpkg}
 Version: ${lver}
 Architecture: ${larch}
@@ -179,7 +184,7 @@ Priority: optional
 Description: Fixture package ${lpkg} for the repo assemble harness
  Not a real package; used only to exercise reprepro includedeb + by-hash.
 EOF_CTL
-    echo "fixture ${lpkg} ${lver}" > "${lstage}/usr/share/doc/${lpkg}/README"
+    echo "fixture ${lpkg} ${lver}" >"${lstage}/usr/share/doc/${lpkg}/README"
     mkdir -p "${lout}"
     dpkg-deb --build --root-owner-group "${lstage}" \
         "${lout}/${lpkg}_${lver}_${larch}.deb" >/dev/null
