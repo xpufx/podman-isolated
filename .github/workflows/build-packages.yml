@@ -438,7 +438,6 @@ jobs:
           sudo env $ENV_ARGS ./setup.sh
           # Fix ownership so actions/cache can save the Go caches
           sudo chown -R "$(id -u):$(id -g)" "$HOME/.cache/go-build" "$HOME/.cache/go-mod"
-        timeout-minutes: 150
 
       - name: Debug DESTDIR contents
         if: always()
