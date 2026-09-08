@@ -365,6 +365,8 @@ jobs:
           # resolver change, or build-script edit busts the key -> full build.
           path: ${{ runner.temp }}/podman-staging
           key: podman-tree-${{ matrix.distro }}-${{ matrix.arch }}-${{ steps.track.outputs.track }}-${{ steps.tree-key.outputs.pins }}-${{ steps.tree-key.outputs.scripts }}
+
+      - name: Build all components
         run: |
           # Dotted DISTRO override (T-21-03): closed case map from the matrix
           # label to the dotted VERSION_ID detect_distro_version_id validates
