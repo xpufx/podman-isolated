@@ -4,7 +4,7 @@ set -euo pipefail
 
 relativepath="../"
 if [[ ! -v toolpath ]]; then
-    scriptpath=$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd)
+    scriptpath=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
     toolpath=$(realpath --canonicalize-missing "${scriptpath}/${relativepath}")
 fi
 
@@ -20,7 +20,15 @@ if [[ -z "${DESTDIR:-}" || ! -d "${DESTDIR}${INSTALL_PREFIX}" ]]; then
 fi
 
 REL_NAME="$(basename "${INSTALL_PREFIX}")"
-PKG_VERSION="${PODMAN_TAG#v}"
+# Prefer the resolved tag; fall back to the release dir name — the same
+# derivation package_all.sh uses. PODMAN_TAG is empty when this script runs
+# outside the resolver-export environment (e.g. package step without TAGs),
+# which previously produced version-less "podman-isolated--linux-*.tar.gz".
+if [[ -n "${PODMAN_TAG:-}" ]]; then
+    PKG_VERSION="${PODMAN_TAG#v}"
+else
+    PKG_VERSION="${REL_NAME}"
+fi
 ARCH_NAME="${ARCH:-amd64}"
 TARBALL_BASE="podman-isolated-${PKG_VERSION}-linux-${ARCH_NAME}"
 STAGING_DIR="$(mktemp -d)"
@@ -41,7 +49,7 @@ rm -f "${STAGING_DIR}/opt/podman/releases/${REL_NAME}"/*.log
 rm -rf "${STAGING_DIR}/opt/podman/releases/${REL_NAME}/var"
 
 # Create install.sh helper
-cat << 'INSERTEOF' > "${STAGING_DIR}/install.sh"
+cat <<'INSERTEOF' >"${STAGING_DIR}/install.sh"
 #!/usr/bin/env bash
 # Standalone installer for Podman Isolated
 set -euo pipefail
@@ -86,7 +94,7 @@ INSERTEOF
 chmod 0755 "${STAGING_DIR}/install.sh"
 
 # Create standalone README.md
-cat << INSERTEOF > "${STAGING_DIR}/README.md"
+cat <<INSERTEOF >"${STAGING_DIR}/README.md"
 # Podman Isolated ${PKG_VERSION} (Linux ${ARCH_NAME})
 
 Standalone binary release of upstream Podman ${PKG_VERSION} and companion OCI stack
@@ -112,7 +120,7 @@ INSERTEOF
 tar -czf "${OUTPUT_DIR}/${TARBALL_BASE}.tar.gz" -C "${STAGING_DIR}" .
 
 # Generate SHA256
-(cd "${OUTPUT_DIR}" && sha256sum "${TARBALL_BASE}.tar.gz" > "${TARBALL_BASE}.tar.gz.sha256")
+(cd "${OUTPUT_DIR}" && sha256sum "${TARBALL_BASE}.tar.gz" >"${TARBALL_BASE}.tar.gz.sha256")
 
 echo ">>> Generated ${OUTPUT_DIR}/${TARBALL_BASE}.tar.gz"
 echo ">>> Checksum: $(cat "${OUTPUT_DIR}/${TARBALL_BASE}.tar.gz.sha256")"
