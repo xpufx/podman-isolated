@@ -737,7 +737,7 @@ th { background: #f4f4f4; }
 
 <p>1. Import the signing key:</p>
 <pre><code>sudo mkdir -p /etc/apt/keyrings
-curl -fsSL https://REPO_URL_PLACEHOLDER/podman-isolated.gpg \
+curl -fsSL https://SITE_URL_PLACEHOLDER/podman-isolated.gpg \
   | sudo tee /etc/apt/keyrings/podman-isolated.gpg > /dev/null</code></pre>
 
 <p>2. Add the repository — pick your track:</p>
@@ -750,28 +750,28 @@ curl -fsSL https://REPO_URL_PLACEHOLDER/podman-isolated.gpg \
   <div id="tab-stable" class="tab-content active">
     <pre class="snippet" data-distro="2404"><code>sudo tee /etc/apt/sources.list.d/podman-isolated.sources &lt;&lt; 'EOF'
 Types: deb
-URIs: https://REPO_URL_PLACEHOLDER/apt
+URIs: https://REPO_URL_PLACEHOLDER
 Suites: stable-2404
 Components: main
 Signed-By: /etc/apt/keyrings/podman-isolated.gpg
 EOF</code></pre>
     <pre class="snippet" data-distro="2604" style="display:none"><code>sudo tee /etc/apt/sources.list.d/podman-isolated.sources &lt;&lt; 'EOF'
 Types: deb
-URIs: https://REPO_URL_PLACEHOLDER/apt
+URIs: https://REPO_URL_PLACEHOLDER
 Suites: stable-2604
 Components: main
 Signed-By: /etc/apt/keyrings/podman-isolated.gpg
 EOF</code></pre>
     <pre class="snippet" data-distro="bookworm" style="display:none"><code>sudo tee /etc/apt/sources.list.d/podman-isolated.sources &lt;&lt; 'EOF'
 Types: deb
-URIs: https://REPO_URL_PLACEHOLDER/apt
+URIs: https://REPO_URL_PLACEHOLDER
 Suites: stable-bookworm
 Components: main
 Signed-By: /etc/apt/keyrings/podman-isolated.gpg
 EOF</code></pre>
     <pre class="snippet" data-distro="trixie" style="display:none"><code>sudo tee /etc/apt/sources.list.d/podman-isolated.sources &lt;&lt; 'EOF'
 Types: deb
-URIs: https://REPO_URL_PLACEHOLDER/apt
+URIs: https://REPO_URL_PLACEHOLDER
 Suites: stable-trixie
 Components: main
 Signed-By: /etc/apt/keyrings/podman-isolated.gpg
@@ -780,28 +780,28 @@ EOF</code></pre>
   <div id="tab-v5" class="tab-content">
     <pre class="snippet" data-distro="2404"><code>sudo tee /etc/apt/sources.list.d/podman-isolated.sources &lt;&lt; 'EOF'
 Types: deb
-URIs: https://REPO_URL_PLACEHOLDER/apt
+URIs: https://REPO_URL_PLACEHOLDER
 Suites: v5-2404
 Components: main
 Signed-By: /etc/apt/keyrings/podman-isolated.gpg
 EOF</code></pre>
     <pre class="snippet" data-distro="2604" style="display:none"><code>sudo tee /etc/apt/sources.list.d/podman-isolated.sources &lt;&lt; 'EOF'
 Types: deb
-URIs: https://REPO_URL_PLACEHOLDER/apt
+URIs: https://REPO_URL_PLACEHOLDER
 Suites: v5-2604
 Components: main
 Signed-By: /etc/apt/keyrings/podman-isolated.gpg
 EOF</code></pre>
     <pre class="snippet" data-distro="bookworm" style="display:none"><code>sudo tee /etc/apt/sources.list.d/podman-isolated.sources &lt;&lt; 'EOF'
 Types: deb
-URIs: https://REPO_URL_PLACEHOLDER/apt
+URIs: https://REPO_URL_PLACEHOLDER
 Suites: v5-bookworm
 Components: main
 Signed-By: /etc/apt/keyrings/podman-isolated.gpg
 EOF</code></pre>
     <pre class="snippet" data-distro="trixie" style="display:none"><code>sudo tee /etc/apt/sources.list.d/podman-isolated.sources &lt;&lt; 'EOF'
 Types: deb
-URIs: https://REPO_URL_PLACEHOLDER/apt
+URIs: https://REPO_URL_PLACEHOLDER
 Suites: v5-trixie
 Components: main
 Signed-By: /etc/apt/keyrings/podman-isolated.gpg
@@ -810,28 +810,28 @@ EOF</code></pre>
   <div id="tab-nightly" class="tab-content">
     <pre class="snippet" data-distro="2404"><code>sudo tee /etc/apt/sources.list.d/podman-isolated.sources &lt;&lt; 'EOF'
 Types: deb
-URIs: https://REPO_URL_PLACEHOLDER/apt
+URIs: https://REPO_URL_PLACEHOLDER
 Suites: nightly-2404
 Components: main
 Signed-By: /etc/apt/keyrings/podman-isolated.gpg
 EOF</code></pre>
     <pre class="snippet" data-distro="2604" style="display:none"><code>sudo tee /etc/apt/sources.list.d/podman-isolated.sources &lt;&lt; 'EOF'
 Types: deb
-URIs: https://REPO_URL_PLACEHOLDER/apt
+URIs: https://REPO_URL_PLACEHOLDER
 Suites: nightly-2604
 Components: main
 Signed-By: /etc/apt/keyrings/podman-isolated.gpg
 EOF</code></pre>
     <pre class="snippet" data-distro="bookworm" style="display:none"><code>sudo tee /etc/apt/sources.list.d/podman-isolated.sources &lt;&lt; 'EOF'
 Types: deb
-URIs: https://REPO_URL_PLACEHOLDER/apt
+URIs: https://REPO_URL_PLACEHOLDER
 Suites: nightly-bookworm
 Components: main
 Signed-By: /etc/apt/keyrings/podman-isolated.gpg
 EOF</code></pre>
     <pre class="snippet" data-distro="trixie" style="display:none"><code>sudo tee /etc/apt/sources.list.d/podman-isolated.sources &lt;&lt; 'EOF'
 Types: deb
-URIs: https://REPO_URL_PLACEHOLDER/apt
+URIs: https://REPO_URL_PLACEHOLDER
 Suites: nightly-trixie
 Components: main
 Signed-By: /etc/apt/keyrings/podman-isolated.gpg
@@ -936,6 +936,8 @@ HTMLEOF
 
 # Replace placeholder with actual repo URL
 sed -i "s|REPO_URL_PLACEHOLDER|${REPO_URL#https://}|g" "${OUTPUT_DIR}/index.html"
+SITE_URL="${REPO_URL%/apt}"
+sed -i "s|SITE_URL_PLACEHOLDER|${SITE_URL#https://}|g" "${OUTPUT_DIR}/index.html"
 
 echo ">>> index.html generated"
 echo ""
