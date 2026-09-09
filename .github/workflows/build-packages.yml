@@ -517,7 +517,7 @@ jobs:
           # don't accumulate ~30 days of .deb artifacts in Actions storage.
           retention-days: 1
       # Forgejo path (v3 API — same name/path contract as v4 for uploads).
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v7
         if: github.server_url != 'https://github.com'
         with:
           name: debs-${{ matrix.distro }}-${{ matrix.arch }}
@@ -604,42 +604,42 @@ jobs:
       # cell artifact by name; arm64 cells are absent in amd64-only runs).
       - name: Download 24.04 artifacts (Forgejo)
         if: github.server_url != 'https://github.com'
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v8
         with:
           name: debs-2404-amd64
           path: all-debs-2404/
       - name: Download 24.04 arm64 artifacts (Forgejo)
         if: github.server_url != 'https://github.com'
         continue-on-error: true
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v8
         with:
           name: debs-2404-arm64
           path: all-debs-2404/
       - name: Download 26.04 artifacts (Forgejo)
         if: github.server_url != 'https://github.com'
         continue-on-error: true
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v8
         with:
           name: debs-2604-amd64
           path: all-debs-2604/
       - name: Download 26.04 arm64 artifacts (Forgejo)
         if: github.server_url != 'https://github.com'
         continue-on-error: true
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v8
         with:
           name: debs-2604-arm64
           path: all-debs-2604/
       - name: Download bookworm artifacts (Forgejo)
         if: github.server_url != 'https://github.com'
         continue-on-error: true
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v8
         with:
           name: debs-bookworm-amd64
           path: all-debs-bookworm/
       - name: Download bookworm arm64 artifacts (Forgejo)
         if: github.server_url != 'https://github.com'
         continue-on-error: true
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v8
         with:
           name: debs-bookworm-arm64
           path: all-debs-bookworm/
