@@ -126,7 +126,7 @@ automatically on a daily schedule — one cron per track (nightly 04:30, stable
 
 ## Issue Reporting
 
-Bug-report and feature-request templates live under `.github/ISSUE_TEMPLATE/`.
+Bug-report and feature-request templates live under `.github/ISSUE_TEMPLATE.disabled/`.
 Open bugs and feature requests through GitHub Issues at
 <https://github.com/slazarov/podman-ubuntu/issues>.
 
