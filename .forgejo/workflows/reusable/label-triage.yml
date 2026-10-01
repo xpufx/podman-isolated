@@ -1,0 +1,105 @@
+name: Reusable issue label triage
+
+# Forgejo runner v13 permits only inputs and outputs below workflow_call.  The
+# caller forwards FORGEJO_TOKEN at its job boundary; do not add a secrets block
+# here.
+on:
+  workflow_call:
+    inputs:
+      actor:
+        description: Actor that created the triggering issue activity
+        required: true
+        type: string
+      issue_number:
+        description: Issue number to triage
+        required: true
+        type: number
+
+permissions:
+  issues: write
+
+jobs:
+  triage:
+    name: Ensure orchestrator attention for human issue activity
+    runs-on: runner-local-shell
+    steps:
+      - name: Report runner diagnostics
+        if: always()
+        env:
+          RUNNER_OS: ${{ runner.os }}
+          RUNNER_ARCH: ${{ runner.arch }}
+        run: |
+          runner_host="${XP_RUNNER_HOST:-<unset>}"
+          printf 'Runner OS: %s\nRunner architecture: %s\nRunner host: %s\n' "$RUNNER_OS" "$RUNNER_ARCH" "$runner_host"
+          if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+            printf "## Runner diagnostics\n\n- OS: \`%s\`\n- Architecture: \`%s\`\n- Host: \`%s\`\n" "$RUNNER_OS" "$RUNNER_ARCH" "$runner_host" >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Set attention/0-orchestrator (human activity only)
+        env:
+          # The caller explicitly forwards the run token under this name.
+          FORGEJO_TOKEN: ${{ secrets.FORGEJO_TOKEN }}
+          API_URL: ${{ github.api_url }}
+          REPO: ${{ github.repository }}
+          ACTOR: ${{ inputs.actor }}
+          ISSUE: ${{ inputs.issue_number }}
+        run: |
+          set -eu
+
+          [ -n "$FORGEJO_TOKEN" ] || { echo "::error::caller did not forward FORGEJO_TOKEN"; exit 1; }
+
+          auth_header="Authorization: token ${FORGEJO_TOKEN}"
+          if command -v curl >/dev/null 2>&1; then
+            api_get() { curl -fsSL -H "$auth_header" "$1"; }
+            api_post() { curl -fsSL -X POST -H "$auth_header" -H "Content-Type: application/json" -d "$2" "$1"; }
+          elif command -v wget >/dev/null 2>&1; then
+            api_get() { wget -q -O - --header "$auth_header" "$1"; }
+            api_post() {
+              wget -q -O - --post-data "$2" \
+                --header "$auth_header" --header "Content-Type: application/json" "$1"
+            }
+          else
+            echo "::error::neither curl nor wget is available on the runner"
+            exit 1
+          fi
+
+          have_jq=0
+          command -v jq >/dev/null 2>&1 && have_jq=1
+          [ "$ACTOR" = "xpufx" ] && { echo "shared xpufx actor; skipping automated activity"; exit 0; }
+          has_label() {
+            if [ "$have_jq" = 1 ]; then
+              printf '%s' "$1" | jq -e --arg label "$2" 'any(.[]; .name == $label)' >/dev/null
+            else
+              printf '%s' "$1" | grep -Fq "\"name\":\"$2\"" || printf '%s' "$1" | grep -Fq "\"name\": \"$2\""
+            fi
+          }
+          is_pull_request() {
+            if [ "$have_jq" = 1 ]; then
+              printf '%s' "$1" | jq -r '.pull_request != null' | grep -q '^true$'
+            else
+              printf '%s' "$1" | grep -Eq '"pull_request"[[:space:]]*:[[:space:]]*\{'
+            fi
+          }
+
+          issue_json="$(api_get "${API_URL}/repos/${REPO}/issues/${ISSUE}")"
+          [ -n "$issue_json" ] || { echo "::error::empty response fetching issue #${ISSUE}"; exit 1; }
+          is_pull_request "$issue_json" && { echo "pull request activity; skipping"; exit 0; }
+          labels_json="$(api_get "${API_URL}/repos/${REPO}/issues/${ISSUE}/labels")"
+
+          # stop-work is a hard circuit breaker, including for SOS.  SOS can
+          # otherwise break through completed/ignored terminal states, matching
+          # the board's emergency precedence.  Triage never changes state/* or
+          # review/*, so an active review or lifecycle transition is preserved.
+          has_label "$labels_json" "flag/stop-work" && { echo "stop-work is set; skipping"; exit 0; }
+          sos=0
+          has_label "$labels_json" "priority/0-SOS" && sos=1
+          if [ "$sos" = 0 ]; then
+            for terminal in flag/wont-do state/4-done attention/3-ignore attention/2-ignore confirmed-done; do
+              has_label "$labels_json" "$terminal" && { echo "terminal label $terminal is set; skipping"; exit 0; }
+            done
+          fi
+          has_label "$labels_json" "attention/0-orchestrator" && { echo "already assigned to orchestrator"; exit 0; }
+
+          echo "human actor '${ACTOR}' on issue #${ISSUE}: setting attention/0-orchestrator"
+          api_post "${API_URL}/repos/${REPO}/issues/${ISSUE}/labels" '{"labels":["attention/0-orchestrator"]}' >/dev/null
+          labels_json="$(api_get "${API_URL}/repos/${REPO}/issues/${ISSUE}/labels")"
+          has_label "$labels_json" "attention/0-orchestrator" || { echo "::error::attention/0-orchestrator was not applied"; exit 1; }

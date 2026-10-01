@@ -1,0 +1,486 @@
+# Reusable issue close guard: when a closed issue event fires, verify whether
+# the closing actor matches a target identity (default: `xpufx`). If so, reset
+# the issue back to open, post a policy enforcement comment, and send an
+# out-of-band notification to the operator / Front Desk via the hook router.
+#
+# Forgejo runner v13 permits only inputs and outputs below workflow_call. The
+# caller forwards FORGEJO_TOKEN at its job boundary; do not add a secrets block
+# here.
+
+name: Reusable issue close guard
+
+on:
+  workflow_call:
+    inputs:
+      actor:
+        description: Actor that triggered the issue close event
+        required: true
+        type: string
+      issue_number:
+        description: Issue number
+        required: true
+        type: number
+      issue_url:
+        description: HTML URL of the issue
+        required: false
+        type: string
+        default: ""
+      target_actor:
+        description: Comma-separated target actor username(s) to intercept
+        required: false
+        type: string
+        default: "xpufx"
+      accepted_labels:
+        description: Comma-separated labels that permit closure without reopening (terminal state escape)
+        required: false
+        type: string
+        default: "state/4-done,confirmed-done"
+      hook_base_url:
+        description: Base URL of the hook router (empty to resolve automatically via settings/config/8099)
+        required: false
+        type: string
+        default: ""
+      hook_path:
+        description: Endpoint path on the hook router
+        required: false
+        type: string
+        default: "/hook"
+
+permissions:
+  issues: write
+
+jobs:
+  guard:
+    name: Reopen ticket, comment, and dispatch hook router notify if closed by target actor
+    runs-on: runner-local-shell
+    steps:
+      - name: Report runner diagnostics
+        if: always()
+        env:
+          RUNNER_OS: ${{ runner.os }}
+          RUNNER_ARCH: ${{ runner.arch }}
+        run: |
+          runner_host="${XP_RUNNER_HOST:-<unset>}"
+          printf 'Runner OS: %s\nRunner architecture: %s\nRunner host: %s\n' "$RUNNER_OS" "$RUNNER_ARCH" "$runner_host"
+          if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+            printf "## Runner diagnostics\n\n- OS: \`%s\`\n- Architecture: \`%s\`\n- Host: \`%s\`\n" "$RUNNER_OS" "$RUNNER_ARCH" "$runner_host" >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Reopen issue, post policy comment, and notify via hook router
+        env:
+          FORGEJO_TOKEN: ${{ secrets.FORGEJO_TOKEN }}
+          API_URL: ${{ github.api_url }}
+          SERVER_URL: ${{ github.server_url }}
+          REPO: ${{ github.repository }}
+          ACTOR: ${{ inputs.actor }}
+          ISSUE: ${{ inputs.issue_number }}
+          ISSUE_URL: ${{ inputs.issue_url }}
+          TARGET_ACTOR: ${{ inputs.target_actor }}
+          ACCEPTED_LABELS: ${{ inputs.accepted_labels }}
+          HOOK_BASE_URL: ${{ inputs.hook_base_url }}
+          HOOK_PATH: ${{ inputs.hook_path }}
+        run: |
+          set -eu
+
+          [ -n "$FORGEJO_TOKEN" ] || { echo "::error::caller did not forward FORGEJO_TOKEN"; exit 1; }
+
+          have_jq=0
+          command -v jq >/dev/null 2>&1 && have_jq=1
+
+          # 1. Target actor check (actor-match skip)
+          target="${TARGET_ACTOR:-xpufx}"
+          match=0
+          IFS=',' read -ra targets <<< "$target"
+          for t in "${targets[@]}"; do
+            trimmed="$(echo "$t" | tr -d '[:space:]')"
+            if [ -n "$trimmed" ] && [ "$ACTOR" = "$trimmed" ]; then
+              match=1
+              break
+            fi
+          done
+
+          if [ "$match" -ne 1 ]; then
+            echo "actor '$ACTOR' does not match target actor(s) '$target'; skipping"
+            exit 0
+          fi
+
+          # 2. API helpers
+          auth_header="Authorization: token ${FORGEJO_TOKEN}"
+          if command -v curl >/dev/null 2>&1; then
+            api_get() { curl -fsSL -H "$auth_header" "$1"; }
+            api_post() { curl -fsSL -X POST -H "$auth_header" -H "Content-Type: application/json" -d "$2" "$1"; }
+            api_patch() { curl -fsSL -X PATCH -H "$auth_header" -H "Content-Type: application/json" -d "$2" "$1"; }
+          elif command -v wget >/dev/null 2>&1; then
+            api_get() { wget -q -O - --header "$auth_header" "$1"; }
+            api_post() {
+              wget -q -O - --post-data "$2" \
+                --header "$auth_header" --header "Content-Type: application/json" "$1"
+            }
+            api_patch() {
+              if command -v python3 >/dev/null 2>&1; then
+                python3 -c '
+                  import urllib.request, sys, os
+                  url, data = sys.argv[1], sys.argv[2].encode("utf-8")
+                  token = os.environ["FORGEJO_TOKEN"]
+                  req = urllib.request.Request(url, data=data, method="PATCH")
+                  req.add_header("Authorization", f"token {token}")
+                  req.add_header("Content-Type", "application/json")
+                  with urllib.request.urlopen(req) as resp:
+                      sys.stdout.write(resp.read().decode("utf-8"))
+                ' "$1" "$2"
+              else
+                wget -q -O - --method=PATCH --header "$auth_header" --header "Content-Type: application/json" --body-data "$2" "$1"
+              fi
+            }
+          elif command -v python3 >/dev/null 2>&1; then
+            api_get() {
+              python3 -c '
+                import urllib.request, sys, os
+                req = urllib.request.Request(sys.argv[1])
+                req.add_header("Authorization", f"token {os.environ[\"FORGEJO_TOKEN\"]}")
+                with urllib.request.urlopen(req) as resp:
+                    sys.stdout.write(resp.read().decode("utf-8"))
+              ' "$1"
+            }
+            api_post() {
+              python3 -c '
+                import urllib.request, sys, os
+                req = urllib.request.Request(sys.argv[1], data=sys.argv[2].encode("utf-8"), method="POST")
+                req.add_header("Authorization", f"token {os.environ[\"FORGEJO_TOKEN\"]}")
+                req.add_header("Content-Type", "application/json")
+                with urllib.request.urlopen(req) as resp:
+                    sys.stdout.write(resp.read().decode("utf-8"))
+              ' "$1" "$2"
+            }
+            api_patch() {
+              python3 -c '
+                import urllib.request, sys, os
+                req = urllib.request.Request(sys.argv[1], data=sys.argv[2].encode("utf-8"), method="PATCH")
+                req.add_header("Authorization", f"token {os.environ[\"FORGEJO_TOKEN\"]}")
+                req.add_header("Content-Type", "application/json")
+                with urllib.request.urlopen(req) as resp:
+                    sys.stdout.write(resp.read().decode("utf-8"))
+              ' "$1" "$2"
+            }
+          else
+            echo "::error::neither curl, wget, nor python3 available for API requests"
+            exit 1
+          fi
+
+          issue_json="$(api_get "${API_URL}/repos/${REPO}/issues/${ISSUE}")"
+          [ -n "$issue_json" ] || { echo "::error::empty response fetching issue #${ISSUE}"; exit 1; }
+
+          # 3. Pull-request skip check
+          is_pr="false"
+          if [ "$have_jq" = 1 ]; then
+            if printf '%s' "$issue_json" | jq -e '.pull_request != null and .pull_request != false' >/dev/null 2>&1; then
+              is_pr="true"
+            fi
+          elif command -v python3 >/dev/null 2>&1; then
+            is_pr="$(python3 -c '
+              import sys, json
+              try:
+                  d = json.loads(sys.argv[1])
+                  print("true" if d.get("pull_request") is not None else "false")
+              except Exception:
+                  print("false")
+            ' "$issue_json")"
+          else
+            if printf '%s' "$issue_json" | grep -Eq '"pull_request"[[:space:]]*:[[:space:]]*\{'; then
+              is_pr="true"
+            fi
+          fi
+
+          if [ "$is_pr" = "true" ]; then
+            echo "issue #${ISSUE} is a pull request; skipping"
+            exit 0
+          fi
+
+          # 4. Terminal-state escape check (accepted_labels)
+          escape_matched=""
+          if [ "$have_jq" = 1 ]; then
+            escape_matched="$(printf '%s' "$issue_json" | jq -r --arg accepted "$ACCEPTED_LABELS" '
+              ($accepted | split(",") | map(gsub("^[[:space:]]+|[[:space:]]+$"; "") | ascii_downcase) | map(select(length > 0))) as $acc |
+              [(.labels // [])[] | (.name // "") | gsub("^[[:space:]]+|[[:space:]]+$"; "") | ascii_downcase | . as $lbl | select($acc | any(. == $lbl))] | first // ""
+            ' 2>/dev/null || echo "")"
+          elif command -v python3 >/dev/null 2>&1; then
+            escape_matched="$(python3 -c '
+              import sys, json
+              try:
+                  data = json.loads(sys.argv[1])
+                  accepted = [x.strip().lower() for x in sys.argv[2].split(",") if x.strip()]
+                  labels = [l.get("name", "").strip().lower() for l in data.get("labels", []) if isinstance(l, dict)]
+                  matched = [l for l in labels if l in accepted]
+                  if matched:
+                      print(matched[0])
+                  else:
+                      print("")
+              except Exception:
+                  print("")
+            ' "$issue_json" "$ACCEPTED_LABELS")"
+          else
+            IFS=',' read -ra acc_arr <<< "$ACCEPTED_LABELS"
+            for acc in "${acc_arr[@]}"; do
+              acc_trimmed="$(echo "$acc" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')"
+              if [ -n "$acc_trimmed" ] && (printf '%s' "$issue_json" | tr '[:upper:]' '[:lower:]' | grep -Fq "\"name\":\"$acc_trimmed\"" || printf '%s' "$issue_json" | tr '[:upper:]' '[:lower:]' | grep -Fq "\"name\": \"$acc_trimmed\""); then
+                escape_matched="$acc_trimmed"
+                break
+              fi
+            done
+          fi
+
+          if [ -n "$escape_matched" ]; then
+            echo "issue #${ISSUE} carries terminal acceptance label '${escape_matched}'; allowing closure without reopening"
+            exit 0
+          fi
+
+          # 5. Reopen the issue
+          echo "Reopening issue #${ISSUE}..."
+          api_patch "${API_URL}/repos/${REPO}/issues/${ISSUE}" '{"state":"open"}' >/dev/null
+          echo "Issue #${ISSUE} reopened successfully."
+
+          # 6. Post policy enforcement comment
+          comment_body=$(cat <<'EOF'
+          > [!WARNING]
+          > **Automated Reopen**: Issue was closed by a targeted autonomous actor and has been reopened per repository governance policy.
+
+          **Policy Directive**:
+          Autonomous agents and orchestrators must **never** close issues directly. Upon completing implementation and local verification, agents must transition tickets to `state/2-review` or `state/3-verify` with an envelope report and await operator verification. Only the human operator closes issues upon final review (`state/4-done` / `confirmed-done`).
+          EOF
+          )
+
+          comment_payload=""
+          if [ "$have_jq" = 1 ]; then
+            comment_payload="$(jq -n --arg body "$comment_body" '{"body": $body}')"
+          elif command -v python3 >/dev/null 2>&1; then
+            comment_payload="$(python3 -c '
+              import sys, json
+              print(json.dumps({"body": sys.argv[1]}))
+            ' "$comment_body")"
+          else
+            escaped_body="$(printf '%s' "$comment_body" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' | awk '{if (NR>1) printf "\\n"; printf "%s", $0}')"
+            comment_payload="$(printf '{"body":"%s"}' "$escaped_body")"
+          fi
+
+          echo "Posting policy comment to issue #${ISSUE}..."
+          api_post "${API_URL}/repos/${REPO}/issues/${ISSUE}/comments" "$comment_payload" >/dev/null
+          echo "Policy comment posted."
+
+          # 7. Out-of-band notification to hook router (strictly optional)
+          # A failed or unreachable notification must never fail the guard.
+          echo "Dispatching notification to hook router for issue #${ISSUE}..."
+
+          dispatch_hook_router() {
+            local hook_base="${HOOK_BASE_URL:-}"
+            local hook_path="${HOOK_PATH:-/hook}"
+            case "$hook_path" in
+              /*) ;;
+              *) hook_path="/$hook_path" ;;
+            esac
+
+            # Host resolution chain matching scripts/frontdesk-info
+            if [ -z "$hook_base" ]; then
+              local host=""
+              local port=""
+              local plugin_settings="${HOME}/.paseo/plugin-data/xpufx/uppidi-fleet/settings.json"
+              local router_config="${HOME}/.config/uppidi-fleet/router-config.json"
+
+              if [ -f "$plugin_settings" ]; then
+                if [ "$have_jq" = 1 ]; then
+                  host="$(jq -r '.hookHost // empty' "$plugin_settings" 2>/dev/null || true)"
+                  port="$(jq -r '.hookPort // empty' "$plugin_settings" 2>/dev/null || true)"
+                elif command -v python3 >/dev/null 2>&1; then
+                  host="$(python3 -c 'import json, sys; d=json.load(open(sys.argv[1])); print(d.get("hookHost",""))' "$plugin_settings" 2>/dev/null || true)"
+                  port="$(python3 -c 'import json, sys; d=json.load(open(sys.argv[1])); print(d.get("hookPort",""))' "$plugin_settings" 2>/dev/null || true)"
+                fi
+              fi
+
+              if [ -z "$host" ] || [ -z "$port" ]; then
+                if [ -f "$router_config" ]; then
+                  if [ "$have_jq" = 1 ]; then
+                    [ -z "$host" ] && host="$(jq -r '.host // empty' "$router_config" 2>/dev/null || true)"
+                    [ -z "$port" ] && port="$(jq -r '.port // empty' "$router_config" 2>/dev/null || true)"
+                  elif command -v python3 >/dev/null 2>&1; then
+                    [ -z "$host" ] && host="$(python3 -c 'import json, sys; d=json.load(open(sys.argv[1])); print(d.get("host",""))' "$router_config" 2>/dev/null || true)"
+                    [ -z "$port" ] && port="$(python3 -c 'import json, sys; d=json.load(open(sys.argv[1])); print(d.get("port",""))' "$router_config" 2>/dev/null || true)"
+                  fi
+                fi
+              fi
+
+              [ -n "$host" ] || host="127.0.0.1"
+              [ -n "$port" ] || port="8099"
+              hook_base="http://${host}:${port}"
+            fi
+
+            local clean_base="${hook_base%/}"
+            local target_url="${clean_base}${hook_path}"
+
+            # Auth secret discovery (server-side webhook secret; never log/print secret)
+            local secret="${FORGEJO_WEBHOOK_SECRET:-}"
+            if [ -z "$secret" ] && [ -f "${HOME}/.paseo/forgejo-hook.secret" ]; then
+              secret="$(head -n 1 "${HOME}/.paseo/forgejo-hook.secret" 2>/dev/null | tr -d '\r\n' || true)"
+            fi
+
+            local issue_num_val=0
+            case "$ISSUE" in
+              ''|*[!0-9]*) issue_num_val=0 ;;
+              *) issue_num_val="$ISSUE" ;;
+            esac
+
+            local default_issue_url="${ISSUE_URL:-}"
+            [ -n "$default_issue_url" ] || default_issue_url="${SERVER_URL}/${REPO}/issues/${ISSUE}"
+
+            local hook_payload=""
+            if [ "$have_jq" = 1 ]; then
+              local title="Issue #${ISSUE}"
+              local labels="[]"
+              title="$(printf '%s' "$issue_json" | jq -r '.title // empty' 2>/dev/null || true)"
+              [ -n "$title" ] || title="Issue #${ISSUE}"
+              labels="$(printf '%s' "$issue_json" | jq -c '.labels // []' 2>/dev/null || echo "[]")"
+
+              hook_payload="$(jq -n \
+                --arg repo "$REPO" \
+                --arg server_url "$SERVER_URL" \
+                --argjson issue_num "$issue_num_val" \
+                --arg title "$title" \
+                --arg issue_url "$default_issue_url" \
+                --argjson labels "$labels" \
+                --arg actor "$ACTOR" \
+                '{
+                  action: "reopened",
+                  repository: {
+                    full_name: $repo,
+                    html_url: (if $server_url != "" then "\($server_url)/\($repo)" else "" end),
+                    clone_url: (if $server_url != "" then "\($server_url)/\($repo).git" else "" end)
+                  },
+                  issue: {
+                    number: $issue_num,
+                    title: $title,
+                    html_url: $issue_url,
+                    state: "open",
+                    labels: $labels
+                  },
+                  sender: {
+                    login: $actor
+                  }
+                }')"
+            elif command -v python3 >/dev/null 2>&1; then
+              hook_payload="$(python3 -c '
+                import json, os, sys
+                repo = os.environ.get("REPO", "")
+                issue = os.environ.get("ISSUE", "")
+                actor = os.environ.get("ACTOR", "")
+                server_url = os.environ.get("SERVER_URL", "")
+                issue_url = sys.argv[2]
+                title = f"Issue #{issue}"
+                labels = []
+                try:
+                    ij = json.loads(sys.argv[1])
+                    title = ij.get("title", title)
+                    labels = ij.get("labels", [])
+                except Exception:
+                    pass
+
+                payload = {
+                    "action": "reopened",
+                    "repository": {
+                        "full_name": repo,
+                        "html_url": f"{server_url}/{repo}" if server_url else "",
+                        "clone_url": f"{server_url}/{repo}.git" if server_url else "",
+                    },
+                    "issue": {
+                        "number": int(issue) if issue.isdigit() else 0,
+                        "title": title,
+                        "html_url": issue_url,
+                        "state": "open",
+                        "labels": labels,
+                    },
+                    "sender": {
+                        "login": actor,
+                    },
+                }
+                print(json.dumps(payload))
+              ' "$issue_json" "$default_issue_url" 2>/dev/null || echo "")"
+            fi
+
+            if [ -z "$hook_payload" ]; then
+              echo "::warning::Could not serialize hook notification payload"
+              return 0
+            fi
+
+            # Dispatch notification
+            local dispatched=0
+            if command -v curl >/dev/null 2>&1; then
+              local auth_args=()
+              if [ -n "$secret" ]; then
+                auth_args=(
+                  -H "Authorization: Bearer ${secret}"
+                  -H "x-webhook-secret: ${secret}"
+                  -H "X-Forgejo-Token: ${secret}"
+                )
+              fi
+              local http_code
+              http_code="$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 -X POST \
+                -H "Content-Type: application/json" \
+                -H "X-Forgejo-Event: issues" \
+                -H "X-Forgejo-Delivery: guard-${ISSUE}" \
+                "${auth_args[@]}" \
+                -d "$hook_payload" \
+                "$target_url" 2>/dev/null || echo "000")"
+              if [ "$http_code" -ge 200 ] 2>/dev/null && [ "$http_code" -lt 300 ] 2>/dev/null; then
+                echo "Hook router notification successfully delivered to ${target_url} (HTTP ${http_code})"
+                dispatched=1
+              else
+                echo "::warning::Hook router notification returned non-2xx status: HTTP ${http_code} (${target_url})"
+              fi
+            elif command -v wget >/dev/null 2>&1; then
+              local wget_headers=(
+                --header "Content-Type: application/json"
+                --header "X-Forgejo-Event: issues"
+                --header "X-Forgejo-Delivery: guard-${ISSUE}"
+              )
+              if [ -n "$secret" ]; then
+                wget_headers+=(
+                  --header "Authorization: Bearer ${secret}"
+                  --header "x-webhook-secret: ${secret}"
+                  --header "X-Forgejo-Token: ${secret}"
+                )
+              fi
+              if wget -q -O /dev/null --timeout=5 "${wget_headers[@]}" --post-data "$hook_payload" "$target_url" 2>/dev/null; then
+                echo "Hook router notification successfully delivered to ${target_url}"
+                dispatched=1
+              else
+                echo "::warning::Hook router notification skipped/failed (${target_url})"
+              fi
+            elif command -v python3 >/dev/null 2>&1; then
+              python3 -c '
+                import urllib.request, sys
+                target_url = sys.argv[1]
+                payload = sys.argv[2].encode("utf-8")
+                secret = sys.argv[3]
+                issue = sys.argv[4]
+                req = urllib.request.Request(target_url, data=payload, method="POST")
+                req.add_header("Content-Type", "application/json")
+                req.add_header("X-Forgejo-Event", "issues")
+                req.add_header("X-Forgejo-Delivery", f"guard-{issue}")
+                if secret:
+                    req.add_header("Authorization", f"Bearer {secret}")
+                    req.add_header("x-webhook-secret", secret)
+                    req.add_header("X-Forgejo-Token", secret)
+                try:
+                    with urllib.request.urlopen(req, timeout=5) as resp:
+                        if 200 <= resp.status < 300:
+                            print(f"Hook router notification successfully delivered to {target_url} (HTTP {resp.status})")
+                        else:
+                            print(f"::warning::Hook router returned non-2xx status: HTTP {resp.status}")
+                except Exception as e:
+                    print(f"::warning::Hook router notification skipped/failed ({target_url}): {e}")
+              ' "$target_url" "$hook_payload" "$secret" "$ISSUE" 2>/dev/null || true
+              dispatched=1
+            fi
+
+            return 0
+          }
+
+          dispatch_hook_router || echo "::warning::Hook router notification step exited non-zero; continuing"
+
+          echo "Issue close guard completed for issue #${ISSUE}."

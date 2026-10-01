@@ -1,0 +1,25 @@
+# Caller workflow for issue close guard.
+# Triggers on issue closed events and delegates to the reusable issue-close-guard workflow.
+
+name: Issue close guard (host runner)
+
+on:
+  issues:
+    types: [closed]
+
+jobs:
+  guard:
+    name: Reopen ticket, comment, and dispatch hook router notify if closed by target actor
+    uses: ./.forgejo/workflows/reusable/issue-close-guard.yml
+    with:
+      actor: ${{ github.actor }}
+      issue_number: ${{ github.event.issue.number }}
+      issue_url: ${{ github.event.issue.html_url }}
+      target_actor: ${{ vars.TICKET_CLOSE_TARGET_ACTOR || 'xpufx' }}
+      accepted_labels: ${{ vars.TICKET_CLOSE_ACCEPTED_LABELS || 'state/4-done,confirmed-done' }}
+      hook_base_url: ${{ vars.HOOK_ROUTER_BASE_URL || '' }}
+      hook_path: ${{ vars.HOOK_ROUTER_PATH || '/hook' }}
+    secrets:
+      FORGEJO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    permissions:
+      issues: write

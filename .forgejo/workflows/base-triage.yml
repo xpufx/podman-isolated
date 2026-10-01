@@ -1,0 +1,20 @@
+name: Base triage caller
+
+on:
+  issues:
+    types: [opened]
+  issue_comment:
+    types: [created]
+
+jobs:
+  triage:
+    uses: ./.forgejo/workflows/reusable/label-triage.yml
+    with:
+      actor: ${{ github.actor }}
+      issue_number: ${{ github.event.issue.number }}
+    # workflow_call.secrets is unsupported on Forgejo runner v13, but caller
+    # jobs may explicitly forward their token to a reusable job.
+    secrets:
+      FORGEJO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    permissions:
+      issues: write

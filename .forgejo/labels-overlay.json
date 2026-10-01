@@ -1,0 +1,40 @@
+{
+  "manifest_version": 1,
+  "labels": [
+    {
+      "name": "target/actions",
+      "owner": "overlay",
+      "color": "#2088ff",
+      "description": "Forgejo Actions workflows, reusable workflows in .forgejo/workflows/, and runner host scripts",
+      "exclusive": true
+    },
+    {
+      "name": "target/scripts",
+      "owner": "overlay",
+      "color": "#0366d6",
+      "description": "Host agent utilities in scripts/ (teax, xpufx-tool, model-probe, setup-forgejo.sh)",
+      "exclusive": true
+    },
+    {
+      "name": "target/skills",
+      "owner": "overlay",
+      "color": "#5319e7",
+      "description": "Agent skills in skills/ (coding-agent, orchestrator, front-desk, audit-plugin, and related)",
+      "exclusive": true
+    },
+    {
+      "name": "target/docs",
+      "owner": "overlay",
+      "color": "#0075ca",
+      "description": "Architectural RFCs, landscape evaluations, and standards in docs/",
+      "exclusive": true
+    },
+    {
+      "name": "target/hook",
+      "owner": "overlay",
+      "color": "#2f363d",
+      "description": "Hook router receiver and watchdog daemon in scripts/forgejo-hook.mjs",
+      "exclusive": true
+    }
+  ]
+}
