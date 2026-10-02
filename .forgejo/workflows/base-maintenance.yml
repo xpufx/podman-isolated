@@ -22,7 +22,7 @@ jobs:
     with:
       forgejo_hostname: forge.mrs.uppidi.com
       overlay_path: .forgejo/labels-overlay.json
-      platform_ref: ${{ github.sha }}
+      platform_ref: main
       dry_run: ${{ inputs.dry_run || false }}
       check: ${{ inputs.check || false }}
     # This mapping is valid at the caller job.  Do not add workflow_call.secrets
