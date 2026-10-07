@@ -502,7 +502,7 @@ jobs:
 
       # GitHub path (v4 API). Skipped on Forgejo, whose artifact API only
       # supports v3/patched-v4 (unpatched v4 fails GHESNotSupportedError).
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         if: github.server_url == 'https://github.com'
         with:
           # CICD-07: distro + arch in the artifact name — the four names are
@@ -517,7 +517,7 @@ jobs:
           # don't accumulate ~30 days of .deb artifacts in Actions storage.
           retention-days: 1
       # Forgejo path (v3 API — same name/path contract as v4 for uploads).
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v6
         if: github.server_url != 'https://github.com'
         with:
           name: debs-${{ matrix.distro }}-${{ matrix.arch }}
@@ -575,7 +575,7 @@ jobs:
       # GitHub path (v4 API: pattern + merge-multiple). Skipped on Forgejo.
       - name: Download 24.04 artifacts
         if: github.server_url == 'https://github.com'
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           pattern: debs-2404-*
           path: all-debs-2404/
@@ -583,7 +583,7 @@ jobs:
 
       - name: Download 26.04 artifacts
         if: github.server_url == 'https://github.com'
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         # 2604 build cells may have failed — continue so 2404 publish proceeds.
         continue-on-error: true
         with:
@@ -593,7 +593,7 @@ jobs:
 
       - name: Download bookworm artifacts
         if: github.server_url == 'https://github.com'
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         continue-on-error: true
         with:
           pattern: debs-bookworm-*
@@ -604,42 +604,42 @@ jobs:
       # cell artifact by name; arm64 cells are absent in amd64-only runs).
       - name: Download 24.04 artifacts (Forgejo)
         if: github.server_url != 'https://github.com'
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v7
         with:
           name: debs-2404-amd64
           path: all-debs-2404/
       - name: Download 24.04 arm64 artifacts (Forgejo)
         if: github.server_url != 'https://github.com'
         continue-on-error: true
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v7
         with:
           name: debs-2404-arm64
           path: all-debs-2404/
       - name: Download 26.04 artifacts (Forgejo)
         if: github.server_url != 'https://github.com'
         continue-on-error: true
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v7
         with:
           name: debs-2604-amd64
           path: all-debs-2604/
       - name: Download 26.04 arm64 artifacts (Forgejo)
         if: github.server_url != 'https://github.com'
         continue-on-error: true
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v7
         with:
           name: debs-2604-arm64
           path: all-debs-2604/
       - name: Download bookworm artifacts (Forgejo)
         if: github.server_url != 'https://github.com'
         continue-on-error: true
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v7
         with:
           name: debs-bookworm-amd64
           path: all-debs-bookworm/
       - name: Download bookworm arm64 artifacts (Forgejo)
         if: github.server_url != 'https://github.com'
         continue-on-error: true
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v7
         with:
           name: debs-bookworm-arm64
           path: all-debs-bookworm/
